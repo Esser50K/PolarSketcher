@@ -1,0 +1,33 @@
+.upload-container {}
+
+.preview-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-content {
+  width: fit-content;
+}
+
+.upload-button-text {
+  cursor: pointer;
+}
+
+.actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 20px;
+}
+
+.actions-bar-buttons {
+  width: 600px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.action-button {
+  margin: 5px;
+}
