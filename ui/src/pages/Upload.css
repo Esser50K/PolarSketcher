@@ -1,7 +1,26 @@
 .upload-container {}
 
+.image-selection-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 600px;
+}
+
+.select-button-container {
+  display: flex;
+  align-items: center;
+  justify-content: left;
+}
+
+.selected-file {
+  font-size: small;
+  margin-left: 5px;
+}
+
 .preview-container {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
 }
@@ -16,6 +35,7 @@
 
 .actions-bar {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   margin: 20px;

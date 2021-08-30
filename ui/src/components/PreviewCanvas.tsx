@@ -3,9 +3,11 @@ import "./PreviewCanvas.css"
 import { Rnd } from 'react-rnd';
 
 interface CanvasProps {
-  svgContent?: string;
-  center?: boolean;
+  svgContent?: string
+  center?: boolean
   children?: React.ReactNode
+  onPositionUpdate?: (pos: { x: number, y: number }) => void
+  onResizeUpdate?: (scale: number) => void
 }
 
 const rndStyle = {
@@ -13,7 +15,6 @@ const rndStyle = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-
 }
 
 function PreviewCanvas(props: CanvasProps) {
@@ -38,11 +39,25 @@ function PreviewCanvas(props: CanvasProps) {
       return
     }
 
-    const content = document.getElementById("canvas-content")
-    const svgContent = content?.firstChild as SVGProps<SVGElement>
+    const content = document.getElementById("canvas-content");
+    let svgContent = content?.firstChild as SVGProps<SVGElement>;
+    content?.childNodes?.forEach((value, key) => {
+      console.info(key, value, value.nodeName);
+      if (value.nodeName === "svg") {
+        svgContent = value as SVGProps<SVGElement>;
+      }
+    })
+
+    if (svgContent?.width || svgContent?.height) {
+      (svgContent as HTMLElement).removeAttribute("width");
+      (svgContent as HTMLElement).removeAttribute("height");
+    }
+
     if (svgContent) {
-      console.info("BBOX", svgContent.bbox, (svgContent.viewBox as any).baseVal);
-      const dimensions = (svgContent.viewBox as any).baseVal as SVGRect
+      console.info("BBOX", svgContent.bbox)
+      console.info("VIEWBOX", (svgContent.viewBox as any)?.baseval)
+      const viewBoxAny = (svgContent.viewBox as any)
+      const dimensions = (viewBoxAny ? viewBoxAny.baseVal : svgContent.bbox) as SVGRect
       setOriginalSVGDimensions({ width: dimensions.width || 0, height: dimensions.height || 0 })
       setCotentDimensions({
         width: Math.min(dimensions.width || 0, canvasDimensions.width),
@@ -73,6 +88,12 @@ function PreviewCanvas(props: CanvasProps) {
               style={rndStyle}
               size={{ width: contentDimensions.width, height: contentDimensions.height }}
               onResizeStop={(e, direction, ref, delta, position) => {
+                if (props.onResizeUpdate) {
+                  props.onResizeUpdate(
+                    parseInt(ref.style.width) / originalSVGDimensions.width)
+                  console.info(parseInt(ref.style.width) / originalSVGDimensions.width)
+                }
+
                 setCotentDimensions({
                   width: parseInt(ref.style.width),
                   height: parseInt(ref.style.height),
@@ -82,7 +103,13 @@ function PreviewCanvas(props: CanvasProps) {
                 ref.style.minHeight = String(contentDimensions.width)
               }}
               position={{ x: contentPosition.x, y: contentPosition.y }}
-              onDragStop={(e, d) => { setContentPosition({ x: d.x, y: d.y }) }}
+              onDragStop={(e, d) => {
+                if (props.onPositionUpdate) {
+                  console.info("position update:", d.x, d.y)
+                  props.onPositionUpdate({ x: d.x, y: d.y })
+                }
+                setContentPosition({ x: d.x, y: d.y })
+              }}
 
               lockAspectRatio
               dragAxis="both"
