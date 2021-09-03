@@ -1,18 +1,23 @@
 import os
 import sys
 import json
-import waitress
 import argparse
+import logging
 from werkzeug.exceptions import BadRequest
 from flask import Flask, request
 from flask_cors import CORS
 from svgelements import Length
 from old_experiments.svg_parser import SVGParser
 from dryrun_drawer import DryrunDrawer
+from flask_sockets import Sockets
+from geventwebsocket.websocket import WebSocket
+from threading import Event
 
 
 app = Flask(__name__)
 CORS(app)
+sockets = Sockets(app)
+
 
 # Request Types
 GET = "GET"
@@ -25,16 +30,34 @@ CANVAS_HEIGHT_MM = Length("%dmm" % int(os.getenv("CANVAS_HEIGHT_MM", 600)))
 parser = None
 drawer = None
 
+running_jobs = {}
+
 
 @app.route("/upload", methods=[POST])
 def upload():
     try:
         params = json.loads(request.data)
+        print("PAYLOAD:", params)
     except json.JSONDecodeError:
         return BadRequest("could not understand request")
 
-    drawer.draw(params["svg"], params["position"], params["scale"])
-    return "ok"
+    return str(drawer.draw(params["svg"], params["position"], size=params["size"]))
+
+
+@sockets.route('/updates')
+def get_updates(ws: WebSocket):
+    try:
+        job = drawer.get_job()
+        if job is None:
+            ws.close()
+            return
+
+        event = Event()
+        job.add_websocket(ws, event)
+        event.wait()
+    except Exception as e:
+        logging.error("failed to decode message:", e)
+        ws.close()
 
 
 def length_tuple(strings):
@@ -58,11 +81,21 @@ if __name__ == '__main__':
         # drawer = PolarSketcherDrawer
         pass
 
+    server = None
     try:
-        print("Starting WebServer...")
-        waitress.serve(app, host='0.0.0.0', port=9943)
-    except KeyboardInterrupt:
-        if drawer is not None:
-            drawer.stop()
+        from gevent import pywsgi
+        from geventwebsocket.handler import WebSocketHandler
 
+        print("Starting WebServer...")
+        # waitress.serve(sockets, host='0.0.0.0', port=9943)
+        server = pywsgi.WSGIServer(('', 9943), app, handler_class=WebSocketHandler)
+        server.serve_forever()
+
+    except KeyboardInterrupt:
+        # if drawer is not None:
+        #     drawer.stop()
+
+        # if server:
+        #     server.stop()
+        #     server.close()
         sys.exit(0)

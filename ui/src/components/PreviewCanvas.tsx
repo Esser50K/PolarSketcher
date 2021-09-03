@@ -7,7 +7,7 @@ interface CanvasProps {
   center?: boolean
   children?: React.ReactNode
   onPositionUpdate?: (pos: { x: number, y: number }) => void
-  onResizeUpdate?: (scale: number) => void
+  onResizeUpdate?: (width: number, height: number) => void
 }
 
 const rndStyle = {
@@ -77,7 +77,7 @@ function PreviewCanvas(props: CanvasProps) {
       console.info("CANVAS HEIGHT:", canvas?.offsetHeight)
     }
 
-  }, [setCanvasDimensions])
+  }, [])
 
   return (
     <div className="canvas-container">
@@ -90,7 +90,7 @@ function PreviewCanvas(props: CanvasProps) {
               onResizeStop={(e, direction, ref, delta, position) => {
                 if (props.onResizeUpdate) {
                   props.onResizeUpdate(
-                    parseInt(ref.style.width) / originalSVGDimensions.width)
+                    parseInt(ref.style.width), parseInt(ref.style.height))
                   console.info(parseInt(ref.style.width) / originalSVGDimensions.width)
                 }
 
