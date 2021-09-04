@@ -54,8 +54,6 @@ function PreviewCanvas(props: CanvasProps) {
     }
 
     if (svgContent) {
-      console.info("BBOX", svgContent.bbox)
-      console.info("VIEWBOX", (svgContent.viewBox as any)?.baseval)
       const viewBoxAny = (svgContent.viewBox as any)
       const dimensions = (viewBoxAny ? viewBoxAny.baseVal : svgContent.bbox) as SVGRect
       setOriginalSVGDimensions({ width: dimensions.width || 0, height: dimensions.height || 0 })
@@ -105,7 +103,6 @@ function PreviewCanvas(props: CanvasProps) {
               position={{ x: contentPosition.x, y: contentPosition.y }}
               onDragStop={(e, d) => {
                 if (props.onPositionUpdate) {
-                  console.info("position update:", d.x, d.y)
                   props.onPositionUpdate({ x: d.x, y: d.y })
                 }
                 setContentPosition({ x: d.x, y: d.y })

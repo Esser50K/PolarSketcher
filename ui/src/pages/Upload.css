@@ -51,3 +51,9 @@
 .action-button {
   margin: 5px;
 }
+
+.canvas-containers {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}

@@ -115,18 +115,20 @@ function Upload() {
                     <button className="action-button" onClick={handleCenterClick}>Center</button>
                 </div>
             </div>
-            <div className="preview-container">
-                <PreviewCanvas
-                    center={center}
-                    svgContent={svgContent}
-                    onResizeUpdate={onResizeUpdate}
-                    onPositionUpdate={onPositionUpdate}>
-                </PreviewCanvas>
-            </div>
+            <div className="canvas-containers">
+                <div className="preview-container">
+                    <PreviewCanvas
+                        center={center}
+                        svgContent={svgContent}
+                        onResizeUpdate={onResizeUpdate}
+                        onPositionUpdate={onPositionUpdate}>
+                    </PreviewCanvas>
+                </div>
 
-            <div className="preview-container">
-                <SimulationCanvas ws={websocket}>
-                </SimulationCanvas>
+                <div className="preview-container">
+                    <SimulationCanvas ws={websocket}>
+                    </SimulationCanvas>
+                </div>
             </div>
         </div >
     );

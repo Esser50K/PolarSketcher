@@ -93,10 +93,7 @@ class DryrunDrawer:
                       offset=(0, 0),
                       render_scale=1.0,
                       render_size=(0, 0),
-                      canvas_scale=1,
-                      use_viewbox_canvas=False,
-                      points_per_mm=1,
-                      fps=60) -> str:
+                      points_per_mm=1) -> str:
 
         if self.current_job:
             self.current_job.stop()
@@ -110,10 +107,7 @@ class DryrunDrawer:
                                   "offset": offset,
                                   "render_scale": render_scale,
                                   "render_size": render_size,
-                                  "canvas_scale": canvas_scale,
-                                  "use_viewbox_canvas": use_viewbox_canvas,
                                   "points_per_mm": points_per_mm,
-                                  "fps": fps,
                                   "shutdown_queue": shutdown_queue,
                                   "update_queue": update_queue})
         process.start()  # starting here instead of inside DrawingJob to avoid a weird issue
@@ -122,21 +116,16 @@ class DryrunDrawer:
         self.current_job.start()
         return str(job_id)
 
-
     def _start_drawing(self,
                        center=False,
                        scale_to_fit=False,
                        offset=(0, 0),
                        render_scale=1.0,
                        render_size=(0, 0),
-                       canvas_scale=1,
-                       use_viewbox_canvas=False,
                        points_per_mm=2,
-                       fps=60,
                        shutdown_queue=Queue(),
                        update_queue=Queue()):
         svg = self.parser.svg
-        canvas_size = self.parser.canvas_size
         bbox_width = svg.bbox()[2] - svg.bbox()[0]
         bbox_height = svg.bbox()[3] - svg.bbox()[1]
         if bbox_width > svg.viewbox.width or bbox_height > svg.viewbox.height:
@@ -148,50 +137,18 @@ class DryrunDrawer:
             bbox_width = bbox_width * fix_render_scale
             bbox_height = bbox_height * fix_render_scale
 
-        width = int(canvas_size[0].amount * canvas_scale)
-        height = int(canvas_size[1].amount * canvas_scale)
-
         print(bbox_width, bbox_height, svg.bbox(), svg.viewbox)
-        render_translate = [0, 0]
-        if scale_to_fit:
-            width_scale = width / svg.viewbox.width
-            height_scale = height / svg.viewbox.height
-            render_scale = max(width_scale, height_scale)  # meant to preserve aspect ratio
-        elif use_viewbox_canvas:
-            width = int(svg.viewbox.width)
-            height = int(svg.viewbox.height)
-
+        render_translate = offset
         if render_size != (0, 0):
-            render_scale = render_size[0] / bbox_width
-
-        scaled_bbox_width = bbox_width * render_scale
-        scaled_bbox_height = bbox_height * render_scale
-
-        if center:
-            scaled_bbox = list(map(lambda x: x * render_scale, svg.bbox()))
-            scaled_offset = scaled_bbox[:2]
-            render_translate[0] = -scaled_offset[0] + (width - scaled_bbox_width) / 2
-            render_translate[1] = -scaled_offset[1] + (height - scaled_bbox_height) / 2
-        else:
-            render_translate = offset
-
-        # init canvas
-        pygame.init()
-        surface = pygame.display.set_mode((int(canvas_size[0].amount), int(canvas_size[1].amount)))
-        surface.fill(pygame.Color('white'))  # set background to white
-        clock = pygame.time.Clock()
+            render_scale = render_size[0] / svg.viewbox.width
 
         all_paths = self.parser.get_paths()
         for point in self.parser.get_all_points(paths=all_paths,
+                                                center=center,
                                                 render_translate=render_translate,
                                                 render_scale=render_scale,
                                                 scale_to_fit=scale_to_fit,
                                                 points_per_mm=points_per_mm):
-            pygame.draw.circle(surface,
-                               pygame.Color('black'), point, 2 * max(.5, render_scale))
-            pygame.display.update()
-            pygame.event.pump()
-            clock.tick(fps)
             update_queue.put(point)
 
             # if there is something in the queue we should quit
@@ -209,18 +166,10 @@ class DryrunDrawer:
 def wait_for_exit(shutdown_queue: Queue, update_queue: Queue):
     try:
         shutdown_queue.get_nowait()
-        pygame.quit()
         shutdown_queue.put(True)
         update_queue.put(True)
         return True
     except Empty:
         pass
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            shutdown_queue.put(True)
-            update_queue.put(True)
-            return True
 
     return False
