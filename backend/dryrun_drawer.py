@@ -1,18 +1,16 @@
 import json
 import uuid
-import pygame
-from queue import Empty, Full
+from queue import Queue, Empty, Full
 from old_experiments.svg_parser import SVGParser
 from threading import Thread, Event
-from multiprocessing import Process, Queue
 from geventwebsocket.websocket import WebSocket
 from typing import Union
 
 
 class DrawingJob:
-    def __init__(self, job_id, process: Process, shutdown_queue, update_queue):
+    def __init__(self, job_id, worker: Thread, shutdown_queue, update_queue):
         self.job_id = job_id
-        self.process = process
+        self.worker = worker
         self.shutdown_queue = shutdown_queue
         self.update_queue = update_queue
         self._update_getter = None
@@ -31,15 +29,24 @@ class DrawingJob:
             "payload": self.drawn_positions
         }))
 
+    def _close_all_websockets(self):
+        for origin, ws_event in self.connected_ws.items():
+            ws, event = ws_event
+            try:
+                ws.close()
+                event.set()
+            except Exception as e:
+                print("failed closing ws from %s:" % origin, e)
+                event.set()
+
     def _read_updates(self):
         while True:
             update = self.update_queue.get()
             if type(update) is bool:
                 try:
-                    self.process.join()
-                    self.process.close()
-                    self.process = None
-                    event.set()
+                    self.worker.join()
+                    self.worker = None
+                    self._close_all_websockets()
                     return
                 except Empty:
                     pass
@@ -101,7 +108,7 @@ class DryrunDrawer:
 
         shutdown_queue = Queue()
         update_queue = Queue()
-        process = Process(target=self._start_drawing,
+        worker = Thread(target=self._start_drawing,
                           kwargs={"center": center,
                                   "scale_to_fit": scale_to_fit,
                                   "offset": offset,
@@ -110,9 +117,9 @@ class DryrunDrawer:
                                   "points_per_mm": points_per_mm,
                                   "shutdown_queue": shutdown_queue,
                                   "update_queue": update_queue})
-        process.start()  # starting here instead of inside DrawingJob to avoid a weird issue
+        worker.start()  # starting here instead of inside DrawingJob to avoid a weird issue
         job_id = uuid.uuid4()
-        self.current_job = DrawingJob(job_id, process, shutdown_queue, update_queue)
+        self.current_job = DrawingJob(job_id, worker, shutdown_queue, update_queue)
         self.current_job.start()
         return str(job_id)
 
@@ -158,9 +165,8 @@ class DryrunDrawer:
             except Empty:
                 pass
 
-        while True:
-            if wait_for_exit(shutdown_queue, update_queue):
-                return
+        shutdown_queue.put(True)
+        update_queue.put(True)
 
 
 def wait_for_exit(shutdown_queue: Queue, update_queue: Queue):
