@@ -53,7 +53,7 @@ function SimulationCanvas(props: CanvasProps) {
         }
       })
       setDrawnPoints(newDrawnPoints);
-      setProgressIndex(drawnPoints.length || 0)
+      //setProgressIndex(drawnPoints.length || 0)
     }
   }, [props.ws])
 
@@ -77,6 +77,7 @@ function SimulationCanvas(props: CanvasProps) {
     }
   }
 
+  console.info(drawnPoints);
   return (
     <div>
       <div className="canvas-container">

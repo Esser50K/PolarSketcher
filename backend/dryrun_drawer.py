@@ -4,6 +4,7 @@ from queue import Queue, Empty, Full
 from old_experiments.svg_parser import SVGParser
 from threading import Thread, Event
 from geventwebsocket.websocket import WebSocket
+from toolpath_generation import horizontal_lines, get_horizontal_intersection_points
 from typing import Union
 
 
@@ -38,6 +39,7 @@ class DrawingJob:
             except Exception as e:
                 print("failed closing ws from %s:" % origin, e)
                 event.set()
+        print("OUTTA HERE")
 
     def _read_updates(self):
         while True:
@@ -47,6 +49,7 @@ class DrawingJob:
                     self.worker.join()
                     self.worker = None
                     self._close_all_websockets()
+                    print("OUTTA HERE")
                     return
                 except Empty:
                     pass
@@ -109,14 +112,14 @@ class DryrunDrawer:
         shutdown_queue = Queue()
         update_queue = Queue()
         worker = Thread(target=self._start_drawing,
-                          kwargs={"center": center,
-                                  "scale_to_fit": scale_to_fit,
-                                  "offset": offset,
-                                  "render_scale": render_scale,
-                                  "render_size": render_size,
-                                  "points_per_mm": points_per_mm,
-                                  "shutdown_queue": shutdown_queue,
-                                  "update_queue": update_queue})
+                        kwargs={"center": center,
+                                "scale_to_fit": scale_to_fit,
+                                "offset": offset,
+                                "render_scale": render_scale,
+                                "render_size": render_size,
+                                "points_per_mm": points_per_mm,
+                                "shutdown_queue": shutdown_queue,
+                                "update_queue": update_queue})
         worker.start()  # starting here instead of inside DrawingJob to avoid a weird issue
         job_id = uuid.uuid4()
         self.current_job = DrawingJob(job_id, worker, shutdown_queue, update_queue)
@@ -149,7 +152,28 @@ class DryrunDrawer:
         if render_size != (0, 0):
             render_scale = render_size[0] / svg.viewbox.width
 
+
+
         all_paths = self.parser.get_paths()
+        """
+        intersection_points = get_horizontal_intersection_points(all_paths,
+                                          (int(svg.viewbox.width), int(svg.viewbox.height)),
+                                          12)
+        for height in sorted(intersection_points.keys()):
+            for point in intersection_points[height]:
+                update_queue.put(tuple([point.real, point.imag]))
+                # if there is something in the queue we should quit
+                try:
+                    if wait_for_exit(shutdown_queue, update_queue):
+                        return
+                except Empty:
+                    pass
+
+        """
+        all_paths = list(horizontal_lines(all_paths,
+                                          (int(svg.viewbox.width), int(svg.viewbox.height)),
+                                          15, .02))
+        print("ALL PATHS:", len(all_paths), all_paths)
         for point in self.parser.get_all_points(paths=all_paths,
                                                 center=center,
                                                 render_translate=render_translate,
