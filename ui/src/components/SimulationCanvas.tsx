@@ -53,7 +53,7 @@ function SimulationCanvas(props: CanvasProps) {
         }
       })
       setDrawnPoints(newDrawnPoints);
-      setProgressIndex(drawnPoints.length || 0)
+      //setProgressIndex(drawnPoints.length || 0)
     }
   }, [props.ws])
 
@@ -77,6 +77,18 @@ function SimulationCanvas(props: CanvasProps) {
     }
   }
 
+  const clearCanvas = () => {
+    if (!ctx) {
+      return
+    }
+
+    const currentCanvas = canvas.current! as HTMLCanvasElement;
+    ctx.clearRect(0, 0, currentCanvas.width, currentCanvas.height);
+    setDrawnPoints([])
+    setProgressIndex(0)
+  }
+
+  console.info(drawnPoints);
   return (
     <div>
       <div className="canvas-container">
@@ -93,6 +105,9 @@ function SimulationCanvas(props: CanvasProps) {
           max={String(drawnPoints.length) || "0"}
           value={String(progressIndex)}
           className="slider"></input>
+      </div>
+      <div>
+        <button onClick={clearCanvas}>CLEAR</button>
       </div>
     </div >
   );

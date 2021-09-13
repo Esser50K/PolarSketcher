@@ -22,6 +22,7 @@ function PreviewCanvas(props: CanvasProps) {
   const [contentDimensions, setCotentDimensions] = useState({ width: 0, height: 0 });
   const [contentPosition, setContentPosition] = useState({ x: 0, y: 0 });
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
+  const [currentSVGContent, setCurrentSVGContent] = useState<HTMLElement>();
 
   useEffect(() => {
     if (!props.center) {
@@ -57,15 +58,19 @@ function PreviewCanvas(props: CanvasProps) {
       const viewBoxAny = (svgContent.viewBox as any)
       const dimensions = (viewBoxAny ? viewBoxAny.baseVal : svgContent.bbox) as SVGRect
       setOriginalSVGDimensions({ width: dimensions.width || 0, height: dimensions.height || 0 })
+      console.info("ContentDimensions", dimensions.width, canvasDimensions.width, dimensions.height, canvasDimensions.height);
+      const contentDimensionsWidth = Math.min(dimensions.width || 0, canvasDimensions.width);
+      const contentDimensionsHeight = Math.min(dimensions.height || 0, canvasDimensions.height);
       setCotentDimensions({
-        width: Math.min(dimensions.width || 0, canvasDimensions.width),
-        height: Math.min(dimensions.height || 0, canvasDimensions.height)
-      })
+        width: contentDimensionsWidth,
+        height: contentDimensionsHeight
+      });
+      setCurrentSVGContent(svgContent as HTMLElement);
     }
     //setCotentDimensions({ width: content?.offsetWidth || 0, height: content?.offsetHeight || 0 })
     console.info("WIDTH:", content?.offsetWidth)
     console.info("HEIGHT:", content?.offsetHeight)
-  }, [props.svgContent, setCotentDimensions])
+  }, [props.svgContent])
 
   useEffect(() => {
     if (canvasDimensions.height === 0) {
@@ -98,7 +103,12 @@ function PreviewCanvas(props: CanvasProps) {
                   ...position,
                 })
                 ref.style.minWidth = String(contentDimensions.width)
-                ref.style.minHeight = String(contentDimensions.width)
+                ref.style.minHeight = String(contentDimensions.height)
+                if (currentSVGContent) {
+                  // currentSVGContent.setAttribute("width", String(contentDimensions.width) + "px");
+                  // currentSVGContent.setAttribute("height", String(contentDimensions.height) + "px");
+                  // setCurrentSVGContent(currentSVGContent);
+                }
               }}
               position={{ x: contentPosition.x, y: contentPosition.y }}
               onDragStop={(e, d) => {
@@ -114,10 +124,9 @@ function PreviewCanvas(props: CanvasProps) {
               enableResizing={{ "bottomRight": true }}
             >
               {props.svgContent ?
-                <div id="canvas-content" className="canvas-content" dangerouslySetInnerHTML={{ __html: props.svgContent }}>
+                <div id="canvas-content" className="canvas-content" style={{ height: contentDimensions.height, width: contentDimensions.width }} dangerouslySetInnerHTML={{ __html: props.svgContent }}>
                 </div> : null}
             </Rnd> : null}
-
       </div>
     </div >
   );

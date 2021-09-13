@@ -55,9 +55,11 @@ def get_updates(ws: WebSocket):
         event = Event()
         job.add_websocket(ws, event)
         event.wait()
+        print("DONE")
     except Exception as e:
         logging.error("failed to decode message:", e)
         ws.close()
+    print("DONE2")
 
 
 def length_tuple(strings):
@@ -67,6 +69,9 @@ def length_tuple(strings):
 
 
 if __name__ == '__main__':
+    from gevent import monkey
+    monkey.patch_all()
+
     parser = argparse.ArgumentParser(description='Polar Sketcher Server')
     parser.add_argument("-d", "--dry-run", type=bool, default=False, help="use dry run drawer")
     parser.add_argument("-s", "--canvas-size",
