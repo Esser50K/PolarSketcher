@@ -69,6 +69,9 @@ def length_tuple(strings):
 
 
 if __name__ == '__main__':
+    from gevent import monkey
+    monkey.patch_all()
+
     parser = argparse.ArgumentParser(description='Polar Sketcher Server')
     parser.add_argument("-d", "--dry-run", type=bool, default=False, help="use dry run drawer")
     parser.add_argument("-s", "--canvas-size",

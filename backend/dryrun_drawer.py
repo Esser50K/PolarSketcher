@@ -6,7 +6,7 @@ from threading import Thread, Event
 from geventwebsocket.websocket import WebSocket
 from toolpath_generation import horizontal_lines, get_horizontal_intersection_points
 from typing import Union
-
+from pprint import pprint
 
 class DrawingJob:
     def __init__(self, job_id, worker: Thread, shutdown_queue, update_queue):
@@ -20,6 +20,7 @@ class DrawingJob:
         self.connected_ws: dict[str, (WebSocket, Event)] = {}
 
     def start(self):
+        self.worker.start()
         self._update_getter = Thread(target=self._read_updates)
         self._update_getter.start()
 
@@ -37,7 +38,7 @@ class DrawingJob:
                 ws.close()
                 event.set()
             except Exception as e:
-                print("failed closing ws from %s:" % origin, e)
+                print("failed closing ws from %s:" % origin, type(e), e)
                 event.set()
         print("OUTTA HERE")
 
@@ -46,8 +47,10 @@ class DrawingJob:
             update = self.update_queue.get()
             if type(update) is bool:
                 try:
-                    self.worker.join()
+                    print("WAITING")
+                    #self.worker.join()
                     self.worker = None
+                    print("CLOSING WEBSOCKETS")
                     self._close_all_websockets()
                     print("OUTTA HERE")
                     return
@@ -65,7 +68,7 @@ class DrawingJob:
                             "payload": [update]
                         }))
                     except Exception as e:
-                        print("failed sending point to %s:" % origin, e)
+                        print("failed sending point to %s:" % origin, type(e), e)
                         event.set()
                         to_delete.append(origin)
 
@@ -103,7 +106,7 @@ class DryrunDrawer:
                       offset=(0, 0),
                       render_scale=1.0,
                       render_size=(0, 0),
-                      points_per_mm=1) -> str:
+                      points_per_mm=.2) -> str:
 
         if self.current_job:
             self.current_job.stop()
@@ -120,7 +123,6 @@ class DryrunDrawer:
                                 "points_per_mm": points_per_mm,
                                 "shutdown_queue": shutdown_queue,
                                 "update_queue": update_queue})
-        worker.start()  # starting here instead of inside DrawingJob to avoid a weird issue
         job_id = uuid.uuid4()
         self.current_job = DrawingJob(job_id, worker, shutdown_queue, update_queue)
         self.current_job.start()
@@ -132,7 +134,7 @@ class DryrunDrawer:
                        offset=(0, 0),
                        render_scale=1.0,
                        render_size=(0, 0),
-                       points_per_mm=2,
+                       points_per_mm=1,
                        shutdown_queue=Queue(),
                        update_queue=Queue()):
         svg = self.parser.svg
@@ -150,11 +152,13 @@ class DryrunDrawer:
         print(bbox_width, bbox_height, svg.bbox(), svg.viewbox)
         render_translate = offset
         if render_size != (0, 0):
-            render_scale = render_size[0] / svg.viewbox.width
+            render_scale_width = render_size[0] / svg.viewbox.width
+            render_scale_height = render_size[1] / svg.viewbox.height
+            render_scale = min(render_scale_width, render_scale_height)
 
 
 
-        all_paths = self.parser.get_paths()
+        all_paths = self.parser.paths
         """
         intersection_points = get_horizontal_intersection_points(all_paths,
                                           (int(svg.viewbox.width), int(svg.viewbox.height)),
@@ -170,10 +174,13 @@ class DryrunDrawer:
                     pass
 
         """
+        # all_paths = list(horizontal_lines(all_paths, (int(svg.viewbox.width), int(svg.viewbox.height))))
+
+        print("ALL PATHS:", len(all_paths))
+        pprint([all_paths[0], all_paths[1]])
         all_paths = list(horizontal_lines(all_paths,
                                           (int(svg.viewbox.width), int(svg.viewbox.height)),
-                                          15, .02))
-        print("ALL PATHS:", len(all_paths), all_paths)
+                                          n_lines=75))
         for point in self.parser.get_all_points(paths=all_paths,
                                                 center=center,
                                                 render_translate=render_translate,
@@ -189,8 +196,11 @@ class DryrunDrawer:
             except Empty:
                 pass
 
+        print("DONE")
         shutdown_queue.put(True)
         update_queue.put(True)
+        print("REALLY DONE")
+        return
 
 
 def wait_for_exit(shutdown_queue: Queue, update_queue: Queue):

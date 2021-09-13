@@ -77,6 +77,17 @@ function SimulationCanvas(props: CanvasProps) {
     }
   }
 
+  const clearCanvas = () => {
+    if (!ctx) {
+      return
+    }
+
+    const currentCanvas = canvas.current! as HTMLCanvasElement;
+    ctx.clearRect(0, 0, currentCanvas.width, currentCanvas.height);
+    setDrawnPoints([])
+    setProgressIndex(0)
+  }
+
   console.info(drawnPoints);
   return (
     <div>
@@ -94,6 +105,9 @@ function SimulationCanvas(props: CanvasProps) {
           max={String(drawnPoints.length) || "0"}
           value={String(progressIndex)}
           className="slider"></input>
+      </div>
+      <div>
+        <button onClick={clearCanvas}>CLEAR</button>
       </div>
     </div >
   );
