@@ -1,10 +1,10 @@
 import json
 import uuid
 from queue import Queue, Empty, Full
-from old_experiments.svg_parser import SVGParser
+from svg_parser import SVGParser
 from threading import Thread, Event
 from geventwebsocket.websocket import WebSocket
-from toolpath_generation import horizontal_lines, get_horizontal_intersection_points
+from toolpath_generation import horizontal_lines
 from typing import Union
 from pprint import pprint
 
@@ -180,7 +180,7 @@ class DryrunDrawer:
         pprint([all_paths[0], all_paths[1]])
         all_paths = list(horizontal_lines(all_paths,
                                           (int(svg.viewbox.width), int(svg.viewbox.height)),
-                                          n_lines=75))
+                                          n_lines=100))
         for point in self.parser.get_all_points(paths=all_paths,
                                                 center=center,
                                                 render_translate=render_translate,

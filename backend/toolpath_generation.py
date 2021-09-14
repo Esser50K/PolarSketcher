@@ -149,13 +149,13 @@ def horizontal_lines(paths: list[Path], canvas_dimensions: tuple, n_lines=100):
             try:
                 path_intersections = path.intersect(line)
                 for (T1, _, _), (_, _, _) in path_intersections:
-                    height_intersections[height].append(complex(path.point(T1).real, height))
+                    height_intersections[height].append((complex(path.point(T1).real, height), path.d()))
             except AssertionError as e:
                 print("failed to find intersection:", e)
                 pass
 
     for height, intersections in height_intersections.items():
-        height_intersections[height] = sorted(height_intersections[height], key=lambda x: x.real)
+        height_intersections[height] = sorted(height_intersections[height], key=lambda x: x[0].real)
         #print("height intersection:", height, height_intersections[height])
         if len(height_intersections[height]) > max_intersections:
             max_intersections = len(height_intersections[height])
@@ -165,17 +165,29 @@ def horizontal_lines(paths: list[Path], canvas_dimensions: tuple, n_lines=100):
         path = Path()
         last_point = None
         last_line_n_intersections = 0
+        last_line_intersection_paths = []
         for height in sorted(height_intersections.keys()):
-            curr_intersections = height_intersections[height]
+            curr_intersections = []
+            curr_intersection_paths = []
+            for intersection, intersection_path in height_intersections[height]:
+                curr_intersections.append(intersection)
+                curr_intersection_paths.append(intersection_path)
+
             # TODO: this doesn't work in case the number of intersections is
             # the same but the intersections are actually with a new shape
-            if len(curr_intersections) != last_line_n_intersections:
+            if len(curr_intersections) != last_line_n_intersections or \
+               last_line_intersection_paths != curr_intersection_paths:
                 print("splitting path", last_line_n_intersections, len(curr_intersections))
+                print("splitting path", last_line_intersection_paths, curr_intersection_paths)
                 if len(path._segments) > 0:
                     yield path
                 path = Path()
                 last_point = None
+            else:
+                print("not splitting")
+
             last_line_n_intersections = len(curr_intersections)
+            last_line_intersection_paths = curr_intersection_paths
 
             if len(curr_intersections) <= nth_intersection:
                 if len(path._segments) > 0:
@@ -183,7 +195,6 @@ def horizontal_lines(paths: list[Path], canvas_dimensions: tuple, n_lines=100):
                 path = Path()
                 last_point = None
                 continue
-
 
             intersection1 = curr_intersections[nth_intersection]
             if last_point is not None:
@@ -203,60 +214,6 @@ def horizontal_lines(paths: list[Path], canvas_dimensions: tuple, n_lines=100):
 
         if len(path._segments) > 0:
             yield path
-
-    """
-    heights = sorted(heights)
-    for nth_intersection in range(0, max_intersections-1, 2):
-        path = Path()
-        last_point = None
-        print("generating paths for interstection",nth_intersection, "and", nth_intersection+1)
-        for i in range(len(heights)):
-            height = heights[i]
-            current_height_intersections = height_intersections[height]
-
-            # if there are no more intersections with this line skip it
-            if nth_intersection >= len(current_height_intersections):
-                continue
-
-            # if it doesn't have an interception pair
-            # just create a zero length line to draw a dot
-            if nth_intersection+1 >= len(current_height_intersections):
-                new_point1 = current_height_intersections[nth_intersection]
-                if last_point is not None:
-                    if abs(new_point1.imag - last_point.imag) > line_step * 1.1:
-                        print("finished", new_point1.imag, last_point.imag)
-                        yield path
-                        path = Path()
-                    else:
-                        path.append(Line(last_point, new_point1))
-                        print("APPENDING LINE:", Line(last_point, new_point1))
-
-                # print("APPENDING DOT:", Line(new_point1, new_point1))
-                # path.append(Line(new_point1, new_point1))
-                last_point = new_point1
-                continue
-
-            print("getting intersection indexes", nth_intersection, nth_intersection+1)
-            new_point1 = current_height_intersections[nth_intersection]
-            new_point2 = current_height_intersections[nth_intersection+1]
-            # connect the last point with the first new one
-            if last_point is not None:
-                if abs(new_point1.imag - last_point.imag) > line_step*1.1:
-                    print("finished", new_point1.imag, last_point.imag)
-                    yield path
-                    path = Path()
-                else:
-                    path.append(Line(last_point, new_point1))
-                    print("APPENDING LINE:", Line(last_point, new_point1))
-            # create new line between the 2 intersections
-            path.append(Line(new_point1, new_point2))
-            print("APPENDING NEW LINE:", Line(new_point1, new_point2))
-            last_point = new_point2
-
-        #print("PATH", path)
-        if path.length() > 0:
-            yield path
-    """
 
 
 def frange(start, stop=None, step=None):

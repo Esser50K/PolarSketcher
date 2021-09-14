@@ -7,7 +7,7 @@ from werkzeug.exceptions import BadRequest
 from flask import Flask, request
 from flask_cors import CORS
 from svgelements import Length
-from old_experiments.svg_parser import SVGParser
+from svg_parser import SVGParser
 from dryrun_drawer import DryrunDrawer
 from flask_sockets import Sockets
 from geventwebsocket.websocket import WebSocket
