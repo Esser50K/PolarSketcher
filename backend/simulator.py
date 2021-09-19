@@ -46,11 +46,13 @@ def get_paths(svg: SVG) -> list[Path]:
             elements.append(element)
         elif isinstance(element, Path):
             if len(element) != 0:
+                print("added path")
                 elements.append(element)
         elif isinstance(element, Shape):
             e = Path(element)
             e.reify()  # In some cases the shape could not have reified, the path must.
             if len(e) != 0:
+                print("added shape")
                 elements.append(e)
         elif isinstance(element, SVGImage):
             try:
@@ -64,7 +66,7 @@ def get_paths(svg: SVG) -> list[Path]:
     for element in elements:
         paths.extend(split_path(element))
 
-    return paths
+    return elements
 
 
 def get_all_points(svg: SVG, canvas_size, paths, canvas_scale=1, render_translate=(0, 0), render_scale=1.0, scale_to_fit=True, center=False, use_viewbox_canvas = False, points_per_mm=2):

@@ -65,6 +65,7 @@ function Upload() {
             return
         }
         if (!!websocket) {
+            console.info("STILL GOT WS")
             return
         }
 
@@ -72,6 +73,12 @@ function Upload() {
         webSocket.onclose = () => {
             setRunningJobId("");
             setWebsocket(undefined);
+            console.info("WEBSOCKET DONE");
+        }
+        webSocket.onerror = () => {
+            setRunningJobId("");
+            setWebsocket(undefined);
+            console.info("WEBSOCKET ERROR");
         }
         webSocket.onmessage = (event: MessageEvent) => {
             const update = JSON.parse(event.data);

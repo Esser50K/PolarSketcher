@@ -8,9 +8,25 @@ from sort_paths import sort_paths
 
 def split_svgpathtool_path(paths: list[ToolsPath]) -> list[ToolsPath]:
     all_subpaths = []
+    subpath = ToolsPath()
     for path in paths:
+        previous_end = None
         for segment in path:
-            all_subpaths.append(ToolsPath(segment))
+            if previous_end is None:
+                subpath.append(segment)
+                previous_end = ToolsPath(segment).point(1)
+                continue
+
+            path_segment = ToolsPath(segment)
+            if abs(previous_end - path_segment.point(0)) > .01:
+                all_subpaths.append(subpath)
+                subpath = ToolsPath()
+
+            subpath.append(segment)
+            previous_end = path_segment.point(1)
+
+    if subpath.length() > 0:
+        all_subpaths.append(subpath)
 
     return all_subpaths
 
@@ -71,7 +87,7 @@ class SVGParser:
         self.canvas_size = canvas_size  # (Length("600cm"), Length("600cm"))
         self.paths = None
 
-    def parse(self, path: str):
+    def parse(self, path: str, split_parse=False):
         self.paths = []
         if not os.path.exists(path):
             f = NamedTemporaryFile("w")
@@ -79,17 +95,18 @@ class SVGParser:
             f.flush()
             path = f.name
 
-        paths, _ = svg2paths(path)
-        #self.paths = split_svgpathtool_path(paths)
         self.svg = SVG.parse(path)
         subpaths = self.get_paths()
-        parsed_paths = []
-        for i in range(len(subpaths)):
-            print(i, len(subpaths))
-            parsed_paths.append(ToolsPath(subpaths[i].d()))
-        self.paths = parsed_paths
-        self.svg_path = ToolsPath(*self.paths)
-        print("viewbox and bbox", self.svg.viewbox, self.svg.bbox())
+        if split_parse:
+            paths, attrs = svg2paths(path)
+            self.paths = [ToolsPath(Path(path.d()).d()) for path in split_svgpathtool_path(paths)]
+            print("Split Paths", len(self.paths))
+            self.svg_path = ToolsPath(*self.paths)
+        else:
+            parsed_paths = []
+            for i in range(len(subpaths)):
+                parsed_paths.append(ToolsPath(subpaths[i].d()))
+            self.paths = parsed_paths
 
     def get_paths(self) -> list[Path]:
         if self.paths:
@@ -126,7 +143,7 @@ class SVGParser:
 
         return self.paths
 
-    def get_all_points(self, paths: list[Path], render_translate=(0, 0), render_scale=1.0,
+    def get_all_points(self, paths: list[Path], render_translate=(0, 0), render_scale=1.0, optimize_paths=False,
                        scale_to_fit=True, center=False, use_viewbox_canvas=False, points_per_mm=2):
         bbox_width = self.svg.bbox()[2] - self.svg.bbox()[0]
         bbox_height = self.svg.bbox()[3] - self.svg.bbox()[1]
@@ -150,7 +167,9 @@ class SVGParser:
             render_translate[0] = -scaled_offset[0] + (width - scaled_bbox_width) / 2
             render_translate[1] = -scaled_offset[1] + (height - scaled_bbox_height) / 2
 
-        #for path in sort_paths(complex(0, self.svg.viewbox.height), paths, (width, height)):
+        if optimize_paths:
+            paths = sort_paths(complex(0, self.svg.viewbox.height), paths, (width, height))
+
         for path in paths:
             for point in get_points(path, render_translate, render_scale, points_per_mm):
                 yield point

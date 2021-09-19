@@ -62,7 +62,9 @@ def find_closest_path_with_endpoint(last_point: complex, paths: list[Path], _: t
             start_dist = calc_distance(last_point, start_point)
             end_dist = calc_distance(last_point, end_point)
             closest_distance = min(start_dist, end_dist)
-            closest_path = p if closest_distance == start_dist else p.reverse()
+            if closest_distance != start_dist:
+                p.reverse()
+            closest_path = p
             continue
 
         start_dist = calc_distance(last_point, start_point)
@@ -70,7 +72,9 @@ def find_closest_path_with_endpoint(last_point: complex, paths: list[Path], _: t
         distance = min(start_dist, end_dist)
         if distance < closest_distance:
             closest_distance = distance
-            closest_path = p if closest_distance == start_dist else p.reverse()
+            if closest_distance != start_dist:
+                p.reverse()
+            closest_path = p
             closest_path_idx = i
 
     return closest_path, (paths[:closest_path_idx] + paths[closest_path_idx+1:])
@@ -116,7 +120,9 @@ def find_closest_path_with_circular_path_check(last_point: complex, paths: list[
                 start_dist = calc_distance(last_point, start_point)
                 end_dist = calc_distance(last_point, end_point)
                 closest_distance = min(start_dist, end_dist)
-                closest_path = p if closest_distance == start_dist else p.reverse()
+                if closest_distance != start_dist:
+                    p.reverse()
+                closest_path = p
             continue
 
         start_dist = calc_distance(last_point, start_point)
@@ -131,9 +137,13 @@ def find_closest_path_with_circular_path_check(last_point: complex, paths: list[
             distance = min(start_dist, end_dist)
             if distance < closest_distance:
                 closest_distance = distance
-                closest_path = p if closest_distance == start_dist else p.reverse()
+                if closest_distance == start_dist:
+                    p.reverse()
+                closest_path = p
                 closest_path_idx = i
 
+    if closest_path is None:
+        print("path is none:", len(paths))
     return closest_path, (paths[:closest_path_idx] + paths[closest_path_idx+1:])
 
 
@@ -185,7 +195,7 @@ def find_closest_path_with_radar_scan(last_point: complex, paths: list[Path], si
         radar_path = Circle(cx=last_point.real, cy=last_point.imag, rx=radius, ry=radius)
 
 
-def sort_paths(start_point: complex, paths: list[Path], canvas_size: tuple[int, int], strategy="simple") -> list[Path]:
+def sort_paths(start_point: complex, paths: list[Path], canvas_size: tuple[int, int], strategy="simple_variant1") -> list[Path]:
     strategy_func = STRATEGIES[strategy]
     last_point = start_point
     while len(paths) != 0:

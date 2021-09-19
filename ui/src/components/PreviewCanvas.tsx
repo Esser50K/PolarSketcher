@@ -90,10 +90,23 @@ function PreviewCanvas(props: CanvasProps) {
             <Rnd
               style={rndStyle}
               size={{ width: contentDimensions.width, height: contentDimensions.height }}
+              onResize={(e, direction, ref, delta, position) => {
+                setCotentDimensions({
+                  width: parseInt(ref.style.width),
+                  height: parseInt(ref.style.height),
+                  ...position,
+                })
+                if (currentSVGContent) {
+                  currentSVGContent.setAttribute("width", String(contentDimensions.width) + "px");
+                  currentSVGContent.setAttribute("height", String(contentDimensions.height) + "px");
+                  setCurrentSVGContent(currentSVGContent);
+                }
+
+              }}
               onResizeStop={(e, direction, ref, delta, position) => {
-                if (props.onResizeUpdate) {
+                if (props.onResizeUpdate && currentSVGContent) {
                   props.onResizeUpdate(
-                    parseInt(ref.style.width), parseInt(ref.style.height))
+                    contentDimensions.width, contentDimensions.height)
                   console.info(parseInt(ref.style.width) / originalSVGDimensions.width)
                 }
 
@@ -104,11 +117,6 @@ function PreviewCanvas(props: CanvasProps) {
                 })
                 ref.style.minWidth = String(contentDimensions.width)
                 ref.style.minHeight = String(contentDimensions.height)
-                if (currentSVGContent) {
-                  // currentSVGContent.setAttribute("width", String(contentDimensions.width) + "px");
-                  // currentSVGContent.setAttribute("height", String(contentDimensions.height) + "px");
-                  // setCurrentSVGContent(currentSVGContent);
-                }
               }}
               position={{ x: contentPosition.x, y: contentPosition.y }}
               onDragStop={(e, d) => {
@@ -124,7 +132,7 @@ function PreviewCanvas(props: CanvasProps) {
               enableResizing={{ "bottomRight": true }}
             >
               {props.svgContent ?
-                <div id="canvas-content" className="canvas-content" style={{ height: contentDimensions.height, width: contentDimensions.width }} dangerouslySetInnerHTML={{ __html: props.svgContent }}>
+                <div id="canvas-content" className="canvas-content" /*style={{ height: contentDimensions.height, width: contentDimensions.width }}*/ dangerouslySetInnerHTML={{ __html: props.svgContent }}>
                 </div> : null}
             </Rnd> : null}
       </div>

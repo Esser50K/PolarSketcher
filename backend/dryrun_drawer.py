@@ -4,9 +4,8 @@ from queue import Queue, Empty, Full
 from svg_parser import SVGParser
 from threading import Thread, Event
 from geventwebsocket.websocket import WebSocket
-from toolpath_generation import horizontal_lines
+from toolpath_generation import horizontal_lines, zigzag_lines, rect_lines
 from typing import Union
-from pprint import pprint
 
 class DrawingJob:
     def __init__(self, job_id, worker: Thread, shutdown_queue, update_queue):
@@ -25,7 +24,8 @@ class DrawingJob:
         self._update_getter.start()
 
     def add_websocket(self, ws: WebSocket, event: Event):
-        self.connected_ws[ws.origin] = (ws, event)
+        key = ws.origin + str(uuid.uuid4())
+        self.connected_ws[ws.origin + str(uuid.uuid4())] = (ws, event)
         ws.send(json.dumps({
             "type": "update",
             "payload": self.drawn_positions
@@ -35,24 +35,22 @@ class DrawingJob:
         for origin, ws_event in self.connected_ws.items():
             ws, event = ws_event
             try:
-                ws.close()
                 event.set()
+                ws.close()
             except Exception as e:
                 print("failed closing ws from %s:" % origin, type(e), e)
                 event.set()
-        print("OUTTA HERE")
+        self.connected_ws = {}
 
     def _read_updates(self):
         while True:
             update = self.update_queue.get()
             if type(update) is bool:
                 try:
-                    print("WAITING")
+                    # don't know why it won't join
                     #self.worker.join()
                     self.worker = None
-                    print("CLOSING WEBSOCKETS")
                     self._close_all_websockets()
-                    print("OUTTA HERE")
                     return
                 except Empty:
                     pass
@@ -138,49 +136,30 @@ class DryrunDrawer:
                        shutdown_queue=Queue(),
                        update_queue=Queue()):
         svg = self.parser.svg
-        bbox_width = svg.bbox()[2] - svg.bbox()[0]
-        bbox_height = svg.bbox()[3] - svg.bbox()[1]
+        original_bbox_width = bbox_width = svg.bbox()[2] - svg.bbox()[0]
+        original_bbox_height = bbox_height = svg.bbox()[3] - svg.bbox()[1]
         if bbox_width > svg.viewbox.width or bbox_height > svg.viewbox.height:
             # This fixes the bbox size in case it happens
             # to be bigger than the viewbox for some reason
-            width_scale = bbox_width / svg.viewbox.width
-            height_scale = bbox_height / svg.viewbox.height
-            fix_render_scale = max(width_scale, height_scale)  # meant to preserve aspect ratio
+            width_scale = svg.viewbox.width / bbox_width
+            height_scale = svg.viewbox.height / bbox_height
+            fix_render_scale = min(width_scale, height_scale)  # meant to preserve aspect ratio
             bbox_width = bbox_width * fix_render_scale
             bbox_height = bbox_height * fix_render_scale
+            render_scale *= fix_render_scale
 
-        print(bbox_width, bbox_height, svg.bbox(), svg.viewbox)
         render_translate = offset
         if render_size != (0, 0):
             render_scale_width = render_size[0] / svg.viewbox.width
             render_scale_height = render_size[1] / svg.viewbox.height
-            render_scale = min(render_scale_width, render_scale_height)
-
-
+            render_scale *= max(render_scale_width, render_scale_height)
 
         all_paths = self.parser.paths
-        """
-        intersection_points = get_horizontal_intersection_points(all_paths,
-                                          (int(svg.viewbox.width), int(svg.viewbox.height)),
-                                          12)
-        for height in sorted(intersection_points.keys()):
-            for point in intersection_points[height]:
-                update_queue.put(tuple([point.real, point.imag]))
-                # if there is something in the queue we should quit
-                try:
-                    if wait_for_exit(shutdown_queue, update_queue):
-                        return
-                except Empty:
-                    pass
-
-        """
-        # all_paths = list(horizontal_lines(all_paths, (int(svg.viewbox.width), int(svg.viewbox.height))))
-
         print("ALL PATHS:", len(all_paths))
-        pprint([all_paths[0], all_paths[1]])
-        all_paths = list(horizontal_lines(all_paths,
-                                          (int(svg.viewbox.width), int(svg.viewbox.height)),
-                                          n_lines=100))
+        all_paths = list(rect_lines(all_paths,
+                                    (max(original_bbox_width, int(svg.viewbox.width)),
+                                     max(original_bbox_height, int(svg.viewbox.height))),
+                                    n_lines=100))
         for point in self.parser.get_all_points(paths=all_paths,
                                                 center=center,
                                                 render_translate=render_translate,
@@ -196,10 +175,8 @@ class DryrunDrawer:
             except Empty:
                 pass
 
-        print("DONE")
         shutdown_queue.put(True)
         update_queue.put(True)
-        print("REALLY DONE")
         return
 
 

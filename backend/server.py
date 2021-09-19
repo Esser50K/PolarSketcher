@@ -55,11 +55,9 @@ def get_updates(ws: WebSocket):
         event = Event()
         job.add_websocket(ws, event)
         event.wait()
-        print("DONE")
     except Exception as e:
         logging.error("failed to decode message:", e)
         ws.close()
-    print("DONE2")
 
 
 def length_tuple(strings):
