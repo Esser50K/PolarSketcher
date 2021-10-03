@@ -7,5 +7,5 @@ pygame~=2.0.1
 serial~=0.0.97
 pyserial~=3.5
 svg.path~=4.1
-svgelements~=1.5.5
-svgpathtools~=1.4.1
+git+https://github.com/meerk40t/svgelements
+git+https://github.com/mathandy/svgpathtools.git
