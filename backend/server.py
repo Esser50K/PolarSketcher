@@ -37,7 +37,6 @@ running_jobs = {}
 def upload():
     try:
         params = json.loads(request.data)
-        print("PAYLOAD:", params)
     except json.JSONDecodeError:
         return BadRequest("could not understand request")
 

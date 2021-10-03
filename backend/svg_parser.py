@@ -31,6 +31,15 @@ def split_svgpathtool_path(paths: list[ToolsPath]) -> list[ToolsPath]:
     return all_subpaths
 
 
+def full_split_svgpathtool_paths(paths: list[ToolsPath]) -> list[ToolsPath]:
+    all_subpaths = []
+    for path in paths:
+        for segment in path:
+            all_subpaths.append(ToolsPath(segment))
+
+    return all_subpaths
+
+
 def split_path(path: Path) -> list[Path]:
     i = 0
     subpaths = []
@@ -53,6 +62,10 @@ def get_points(path: Path, render_translate=(0, 0), render_scale=1.0, points_per
         yield ((point.real * render_scale) + render_translate[0],
                (point.imag * render_scale) + render_translate[1])
         return
+    except Exception as e:
+        print("ERROR", e)
+        print(path)
+        raise e
 
     scaled_path_len = path_len * render_scale
     total_points = int(scaled_path_len * points_per_mm)
@@ -99,7 +112,8 @@ class SVGParser:
         subpaths = self.get_paths()
         if split_parse:
             paths, attrs = svg2paths(path)
-            self.paths = [ToolsPath(Path(path.d()).d()) for path in split_svgpathtool_path(paths)]
+            # self.paths = split_svgpathtool_path(paths)
+            self.paths = full_split_svgpathtool_paths(paths)
             print("Split Paths", len(self.paths))
             self.svg_path = ToolsPath(*self.paths)
         else:

@@ -4,7 +4,7 @@ from queue import Queue, Empty, Full
 from svg_parser import SVGParser
 from threading import Thread, Event
 from geventwebsocket.websocket import WebSocket
-from toolpath_generation import horizontal_lines, zigzag_lines, rect_lines
+from toolpath_generation import horizontal_lines, zigzag_lines, rect_lines, rect_lines2, rect_lines3
 from typing import Union
 
 class DrawingJob:
@@ -132,7 +132,7 @@ class DryrunDrawer:
                        offset=(0, 0),
                        render_scale=1.0,
                        render_size=(0, 0),
-                       points_per_mm=1,
+                       points_per_mm=2,
                        shutdown_queue=Queue(),
                        update_queue=Queue()):
         svg = self.parser.svg
@@ -155,11 +155,10 @@ class DryrunDrawer:
             render_scale *= max(render_scale_width, render_scale_height)
 
         all_paths = self.parser.paths
-        print("ALL PATHS:", len(all_paths))
-        all_paths = list(rect_lines(all_paths,
-                                    (max(original_bbox_width, int(svg.viewbox.width)),
-                                     max(original_bbox_height, int(svg.viewbox.height))),
-                                    n_lines=100))
+        all_paths = list(rect_lines3(all_paths,
+                                     (max(original_bbox_width, int(svg.viewbox.width)),
+                                      max(original_bbox_height, int(svg.viewbox.height))),
+                                     n_lines=150))
         for point in self.parser.get_all_points(paths=all_paths,
                                                 center=center,
                                                 render_translate=render_translate,
