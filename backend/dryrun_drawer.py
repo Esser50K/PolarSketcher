@@ -158,7 +158,7 @@ class DryrunDrawer:
         all_paths = list(rect_lines3(all_paths,
                                      (max(original_bbox_width, int(svg.viewbox.width)),
                                       max(original_bbox_height, int(svg.viewbox.height))),
-                                     n_lines=150))
+                                     n_lines=50))
         for point in self.parser.get_all_points(paths=all_paths,
                                                 center=center,
                                                 render_translate=render_translate,

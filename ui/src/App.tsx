@@ -1,12 +1,12 @@
 import React from 'react';
 import logo from './logo.svg';
 import './App.css';
-import Upload from "./pages/Upload"
+import MainUI from "./pages/MainUI"
 
 function App() {
   return (
     <div className="App">
-      <Upload></Upload>
+      <MainUI></MainUI>
     </div>
   );
 }

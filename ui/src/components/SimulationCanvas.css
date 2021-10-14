@@ -1,16 +1,10 @@
-.canvas-container {
-  margin: 8px;
-  border: 2px solid black;
-  width: 600px;
-  height: 600px;
-  max-width: 600px;
-  max-height: 600px;
+.simulation-container {
+  width: 100%;
 }
 
-.canvas {
-  width: inherit;
-  height: inherit;
+.simulation-canvas {
   position: relative;
+  width: 100%;
 }
 
 .canvas-content {
@@ -20,8 +14,7 @@
 /* Progress Bar */
 
 .slidecontainer {
-  width: 600px; /* Width of the outside container */
-  margin: 8px;
+  width: 100%;
   border: 1px solid black;
 }
 
@@ -29,8 +22,8 @@
 .slider {
   -webkit-appearance: none;  /* Override default CSS styles */
   appearance: none;
+
   width: 100%; /* Full-width */
-  height: 25px; /* Specified height */
   background: #d3d3d3; /* Grey background */
   outline: none; /* Remove outline */
   opacity: 0.7; /* Set transparency (for mouse-over effects on hover) */

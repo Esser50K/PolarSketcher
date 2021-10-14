@@ -1,16 +1,15 @@
 .canvas-container {
-  margin: 8px;
   border: 2px solid black;
-  width: 600px;
-  height: 600px;
-  max-width: 600px;
-  max-height: 600px;
+  width: 100%;
 }
 
-.canvas {
-  width: inherit;
-  height: inherit;
+.preview-canvas {
   position: relative;
+  width: 100%;
+}
+
+.preview-canvas::before {
+  display: block;
 }
 
 .canvas-content {
