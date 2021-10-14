@@ -1,5 +1,6 @@
 import React, { SVGProps, useEffect, useState } from 'react';
-import "./PreviewCanvas.css"
+import '../index.css';
+import "./PreviewCanvas.css";
 import { Rnd } from 'react-rnd';
 
 interface CanvasProps {
@@ -23,6 +24,26 @@ function PreviewCanvas(props: CanvasProps) {
   const [contentPosition, setContentPosition] = useState({ x: 0, y: 0 });
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
   const [currentSVGContent, setCurrentSVGContent] = useState<HTMLElement>();
+  const [windowResizeEvent, setWidowResizeEvent] = useState<any>();
+
+  useEffect(() => {
+    window.addEventListener('resize', (event) => {
+      const canvas = document.getElementById("canvas")
+      // setting both as width since canvas is always square
+      setCanvasDimensions({ width: canvas?.offsetWidth || 0, height: canvas?.offsetWidth || 0 })
+
+
+      setWidowResizeEvent(event)
+    })
+  }, [])
+
+  useEffect(() => {
+    const canvas = document.getElementById("canvas");
+    setCotentDimensions({
+      width: Math.min(contentDimensions.width || 0, canvas?.offsetWidth || 0),
+      height: Math.min(contentDimensions.width || 0, canvas?.offsetWidth || 0)
+    })
+  }, [windowResizeEvent])
 
   useEffect(() => {
     if (!props.center) {
@@ -65,6 +86,10 @@ function PreviewCanvas(props: CanvasProps) {
         width: contentDimensionsWidth,
         height: contentDimensionsHeight
       });
+      if (props.onResizeUpdate) {
+        props.onResizeUpdate(contentDimensionsWidth, contentDimensionsHeight)
+      }
+
       setCurrentSVGContent(svgContent as HTMLElement);
     }
     //setCotentDimensions({ width: content?.offsetWidth || 0, height: content?.offsetHeight || 0 })
@@ -75,16 +100,16 @@ function PreviewCanvas(props: CanvasProps) {
   useEffect(() => {
     if (canvasDimensions.height === 0) {
       const canvas = document.getElementById("canvas")
-      setCanvasDimensions({ width: canvas?.offsetWidth || 0, height: canvas?.offsetHeight || 0 })
+      // setting both as width since canvas is always square
+      setCanvasDimensions({ width: canvas?.offsetWidth || 0, height: canvas?.offsetWidth || 0 })
       console.info("CANVAS WIDTH:", canvas?.offsetWidth)
       console.info("CANVAS HEIGHT:", canvas?.offsetHeight)
     }
-
   }, [])
 
   return (
     <div className="canvas-container">
-      <div id="canvas" className="canvas">
+      <div id="canvas" className="preview-canvas" style={{ height: canvasDimensions.width }}>
         {
           canvasDimensions.width !== 0 ?
             <Rnd
@@ -94,14 +119,12 @@ function PreviewCanvas(props: CanvasProps) {
                 setCotentDimensions({
                   width: parseInt(ref.style.width),
                   height: parseInt(ref.style.height),
-                  ...position,
                 })
                 if (currentSVGContent) {
                   currentSVGContent.setAttribute("width", String(contentDimensions.width) + "px");
                   currentSVGContent.setAttribute("height", String(contentDimensions.height) + "px");
                   setCurrentSVGContent(currentSVGContent);
                 }
-
               }}
               onResizeStop={(e, direction, ref, delta, position) => {
                 if (props.onResizeUpdate && currentSVGContent) {
@@ -113,7 +136,6 @@ function PreviewCanvas(props: CanvasProps) {
                 setCotentDimensions({
                   width: parseInt(ref.style.width),
                   height: parseInt(ref.style.height),
-                  ...position,
                 })
                 ref.style.minWidth = String(contentDimensions.width)
                 ref.style.minHeight = String(contentDimensions.height)
@@ -128,7 +150,7 @@ function PreviewCanvas(props: CanvasProps) {
 
               lockAspectRatio
               dragAxis="both"
-              bounds=".canvas"
+              bounds=".preview-canvas"
               enableResizing={{ "bottomRight": true }}
             >
               {props.svgContent ?

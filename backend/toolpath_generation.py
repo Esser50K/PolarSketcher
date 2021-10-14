@@ -495,7 +495,7 @@ def rect_lines3(paths: list[Path], canvas_dimensions: tuple, n_lines=100):
             except AssertionError:
                 pass
             except Exception as e:
-                print("exc:", e)
+                print("unexpected error calculating hierarchy:", e)
 
     # this is to check if the paths for previously used already
     paths_collided = {path.d(): False for path in paths}
@@ -628,9 +628,7 @@ def rect_lines3(paths: list[Path], canvas_dimensions: tuple, n_lines=100):
                             ongoing_paths_next_points[i] = (None, None)
                         break
                     elif connection_point[0] == other_continuation_point[0]:
-                        print(2)
                         if connection_point[-2] < other_connection_point[-2]:
-                            print(2)
                             ongoing_paths_next_points[ongoing_paths_idx] = (None, None)
                             ongoing_paths_next_points[i] = (connection_point, continuation_point)
                         else:
@@ -685,14 +683,10 @@ def rect_lines3(paths: list[Path], canvas_dimensions: tuple, n_lines=100):
 
                     point1, point_in_path1, collision_path1 = height_intersections[height][i]
                     point2, point_in_path2, collision_path2 = height_intersections[height][i+1]
-                    print("points:", point1, point2)
                     ongoing_paths.append((Path(Line(point1, point2)), point_in_path2, collision_path2, False))
             except Exception as e:
-                print("ERROR", e)
-                print(len(height_intersections[height]))
-                print(height_intersections[height])
+                print("error trying to create new paths", e)
                 raise e
-
 
         for path_str in group:
             paths_collided[path_str] = True

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import './Upload.css';
+import '../index.css';
+import './MainUI.css';
 import PreviewCanvas from '../components/PreviewCanvas'
 import SimulationCanvas from '../components/SimulationCanvas'
 
-function Upload() {
+function MainUI() {
     const [selectedFile, setSelectedFile] = useState("");
     const [svgContent, setSvgContent] = useState("");
     const [center, setCenter] = useState(false);
@@ -35,9 +36,12 @@ function Upload() {
         }
 
         try {
+            const canvasDiv = document.getElementById("simulation-canvas");
+            const ratio = canvasDiv!.offsetWidth / 600;
+
             const body = {
-                position: [contentPosition.x, contentPosition.y],
-                size: contentSize,
+                position: [contentPosition.x / ratio, contentPosition.y / ratio],
+                size: [contentSize[0] / ratio, contentSize[1] / ratio],
                 svg: svgContent
             }
 
@@ -55,6 +59,10 @@ function Upload() {
 
             const jobId = await resp.text()
             setRunningJobId(jobId);
+            if (websocket) {
+                websocket.close();
+            }
+            setWebsocket(undefined);
         } catch (e) {
             alert("failed to upload image: " + e)
         }
@@ -99,10 +107,16 @@ function Upload() {
     }, [center])
 
     return (
-        <div className="upload-container">
-            <div className="actions-bar">
-                <div className="image-selection-container">
-                    <div className="select-button-container action-button">
+        <div className="upload-container m-2">
+            <div className="flex flex-col items-center justify-center m-8">
+                <div className="w-full flex flex-row items-center justify-start">
+                    <div>
+                        <button
+                            className="button-base"
+                            onClick={handleUpload}>Upload Image
+                        </button>
+                    </div>
+                    <div className="flex items-center">
                         <input type="file"
                             accept="image/svg+xml"
                             name="image"
@@ -110,20 +124,26 @@ function Upload() {
                             style={{ "display": "none" }}
                             onChange={handleSelectImage}>
                         </input>
-                        <p><label htmlFor="file" className="upload-button-text">{selectedFile === "" ? "Select Image" : "Selected Image:"}</label></p>
-                        {selectedFile !== "" ?
-                            <p className="selected-file">{selectedFile}</p> : null}
-                    </div>
-                    <div className="action-button">
-                        <button onClick={handleUpload}>Upload Image</button>
+                        <p className={`ml-5 p-1 text-sm ${selectedFile === '' ? 'border-2 rounded-sm' : ''}`}>
+                            <label htmlFor="file">
+                                {selectedFile === "" ? "Select Image" : selectedFile}
+                            </label>
+                        </p>
                     </div>
                 </div>
-                <div className="actions-bar-buttons">
-                    <button className="action-button" onClick={handleCenterClick}>Center</button>
+                <div className="w-full mt-1 mb-1 flex flex-row items-center">
+                    <div className="mr-4 flex-grow h-1 bg-gray-100"></div>
+                    <div className="font-bold">Action Buttons</div>
+                    <div className="ml-4 flex-grow h-1 bg-gray-100"></div>
+                </div>
+                <div className="w-full m-2 flex flex-row">
+                    <button className="button-base" onClick={handleCenterClick}>
+                        Center
+                    </button>
                 </div>
             </div>
             <div className="canvas-containers">
-                <div className="preview-container">
+                <div className="preview-container mr-2">
                     <PreviewCanvas
                         center={center}
                         svgContent={svgContent}
@@ -132,7 +152,7 @@ function Upload() {
                     </PreviewCanvas>
                 </div>
 
-                <div className="preview-container">
+                <div className="preview-container ml-2">
                     <SimulationCanvas ws={websocket}>
                     </SimulationCanvas>
                 </div>
@@ -141,4 +161,4 @@ function Upload() {
     );
 }
 
-export default Upload;
+export default MainUI;
