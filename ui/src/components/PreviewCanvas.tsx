@@ -6,6 +6,7 @@ import { Rnd } from 'react-rnd';
 interface CanvasProps {
   svgContent?: string
   center?: boolean
+  maxout?: boolean
   children?: React.ReactNode
   onPositionUpdate?: (pos: { x: number, y: number }) => void
   onResizeUpdate?: (width: number, height: number) => void
@@ -20,11 +21,34 @@ const rndStyle = {
 
 function PreviewCanvas(props: CanvasProps) {
   const [originalSVGDimensions, setOriginalSVGDimensions] = useState({ width: 0, height: 0 });
-  const [contentDimensions, setCotentDimensions] = useState({ width: 0, height: 0 });
+  const [contentDimensions, setContentDimensions] = useState({ width: 0, height: 0 });
   const [contentPosition, setContentPosition] = useState({ x: 0, y: 0 });
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
   const [currentSVGContent, setCurrentSVGContent] = useState<HTMLElement>();
   const [windowResizeEvent, setWidowResizeEvent] = useState<any>();
+
+
+  const resize = (width: number, height: number) => {
+    setContentDimensions({ width: width, height: height });
+
+    if (currentSVGContent) {
+      currentSVGContent.setAttribute("width", String(width) + "px");
+      currentSVGContent.setAttribute("height", String(height) + "px");
+      setCurrentSVGContent(currentSVGContent);
+    }
+
+    if (props.onResizeUpdate) {
+      props.onResizeUpdate(width, height)
+    }
+  };
+
+  const setNewPos = (x: number, y: number) => {
+    setContentPosition({ x: x, y: y })
+
+    if (props.onPositionUpdate) {
+      props.onPositionUpdate({ x: x, y: y })
+    }
+  }
 
   useEffect(() => {
     window.addEventListener('resize', (event) => {
@@ -39,10 +63,9 @@ function PreviewCanvas(props: CanvasProps) {
 
   useEffect(() => {
     const canvas = document.getElementById("canvas");
-    setCotentDimensions({
-      width: Math.min(contentDimensions.width || 0, canvas?.offsetWidth || 0),
-      height: Math.min(contentDimensions.width || 0, canvas?.offsetWidth || 0)
-    })
+    resize(
+      Math.min(contentDimensions.width || 0, canvas?.offsetWidth || 0),
+      Math.min(contentDimensions.width || 0, canvas?.offsetWidth || 0))
   }, [windowResizeEvent])
 
   useEffect(() => {
@@ -50,11 +73,36 @@ function PreviewCanvas(props: CanvasProps) {
       return
     }
 
-    setContentPosition({
-      x: (canvasDimensions.width / 2) - (contentDimensions.width / 2),
-      y: (canvasDimensions.height / 2) - (contentDimensions.height / 2)
-    })
+
+    const x = (canvasDimensions.width / 2) - (contentDimensions.width / 2);
+    const y = (canvasDimensions.height / 2) - (contentDimensions.height / 2);
+    setNewPos(x, y);
   }, [props.center])
+
+  useEffect(() => {
+    if (!props.maxout) {
+      return
+    }
+
+    let newContentWidth = contentDimensions.width;
+    let newContentHeight = contentDimensions.height;
+    const vertical = contentDimensions.height > contentDimensions.width;
+    if (vertical) {
+      newContentHeight = canvasDimensions.height;
+      const increaseRatio = newContentHeight / contentDimensions.height;
+      newContentWidth = contentDimensions.width * increaseRatio;
+      resize(newContentWidth, newContentHeight);
+    } else {
+      newContentWidth = canvasDimensions.width;
+      const increaseRatio = newContentWidth / contentDimensions.width;
+      newContentHeight = contentDimensions.height * increaseRatio;
+      resize(newContentWidth, newContentHeight);
+    }
+
+    const x = (canvasDimensions.width / 2) - (newContentWidth / 2);
+    const y = (canvasDimensions.height / 2) - (newContentHeight / 2);
+    setNewPos(x, y);
+  }, [props.maxout])
 
   useEffect(() => {
     if (contentDimensions.height !== 0) {
@@ -82,17 +130,14 @@ function PreviewCanvas(props: CanvasProps) {
       console.info("ContentDimensions", dimensions.width, canvasDimensions.width, dimensions.height, canvasDimensions.height);
       const contentDimensionsWidth = Math.min(dimensions.width || 0, canvasDimensions.width);
       const contentDimensionsHeight = Math.min(dimensions.height || 0, canvasDimensions.height);
-      setCotentDimensions({
-        width: contentDimensionsWidth,
-        height: contentDimensionsHeight
-      });
-      if (props.onResizeUpdate) {
-        props.onResizeUpdate(contentDimensionsWidth, contentDimensionsHeight)
-      }
-
+      (svgContent as HTMLElement).setAttribute("width", String(contentDimensionsHeight) + "px");
+      (svgContent as HTMLElement).setAttribute("height", String(contentDimensionsWidth) + "px");
       setCurrentSVGContent(svgContent as HTMLElement);
+      console.info("RESIZING")
+      resize(contentDimensionsWidth, contentDimensionsHeight);
+      console.info("RIGHT HERE")
     }
-    //setCotentDimensions({ width: content?.offsetWidth || 0, height: content?.offsetHeight || 0 })
+    // resize(content?.offsetWidth || 0, content?.offsetWidth || 0);
     console.info("WIDTH:", content?.offsetWidth)
     console.info("HEIGHT:", content?.offsetHeight)
   }, [props.svgContent])
@@ -116,27 +161,10 @@ function PreviewCanvas(props: CanvasProps) {
               style={rndStyle}
               size={{ width: contentDimensions.width, height: contentDimensions.height }}
               onResize={(e, direction, ref, delta, position) => {
-                setCotentDimensions({
-                  width: parseInt(ref.style.width),
-                  height: parseInt(ref.style.height),
-                })
-                if (currentSVGContent) {
-                  currentSVGContent.setAttribute("width", String(contentDimensions.width) + "px");
-                  currentSVGContent.setAttribute("height", String(contentDimensions.height) + "px");
-                  setCurrentSVGContent(currentSVGContent);
-                }
+                resize(parseInt(ref.style.width), parseInt(ref.style.height))
               }}
               onResizeStop={(e, direction, ref, delta, position) => {
-                if (props.onResizeUpdate && currentSVGContent) {
-                  props.onResizeUpdate(
-                    contentDimensions.width, contentDimensions.height)
-                  console.info(parseInt(ref.style.width) / originalSVGDimensions.width)
-                }
-
-                setCotentDimensions({
-                  width: parseInt(ref.style.width),
-                  height: parseInt(ref.style.height),
-                })
+                resize(parseInt(ref.style.width), parseInt(ref.style.height));
                 ref.style.minWidth = String(contentDimensions.width)
                 ref.style.minHeight = String(contentDimensions.height)
               }}

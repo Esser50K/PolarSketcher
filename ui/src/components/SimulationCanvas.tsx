@@ -137,7 +137,6 @@ function SimulationCanvas(props: CanvasProps) {
     setProgressIndex(0)
   }
 
-  console.info(drawnPoints);
   return (
     <div className="simulation-container">
       <div className="canvas-container">

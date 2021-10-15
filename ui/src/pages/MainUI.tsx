@@ -8,6 +8,7 @@ function MainUI() {
     const [selectedFile, setSelectedFile] = useState("");
     const [svgContent, setSvgContent] = useState("");
     const [center, setCenter] = useState(false);
+    const [maxout, setMaxout] = useState(false);
     const [runningJobId, setRunningJobId] = useState("");
     const [websocket, setWebsocket] = useState<WebSocket>();
     const [drawnPoints, setDrawnPoints] = useState<[number, number][]>([]);
@@ -28,6 +29,10 @@ function MainUI() {
 
     const handleCenterClick = () => {
         setCenter(true);
+    }
+
+    const handleMaxOutClick = () => {
+        setMaxout(true);
     }
 
     const handleUpload = async () => {
@@ -104,18 +109,19 @@ function MainUI() {
 
     useEffect(() => {
         setCenter(false)
-    }, [center])
+        setMaxout(false)
+    }, [center, maxout])
 
     return (
         <div className="upload-container m-2">
             <div className="flex flex-col items-center justify-center m-8">
                 <div className="w-full flex flex-row items-center justify-start">
-                    <div>
+                    {selectedFile !== "" ? <div>
                         <button
                             className="button-base"
                             onClick={handleUpload}>Upload Image
                         </button>
-                    </div>
+                    </div> : null}
                     <div className="flex items-center">
                         <input type="file"
                             accept="image/svg+xml"
@@ -124,7 +130,7 @@ function MainUI() {
                             style={{ "display": "none" }}
                             onChange={handleSelectImage}>
                         </input>
-                        <p className={`ml-5 p-1 text-sm ${selectedFile === '' ? 'border-2 rounded-sm' : ''}`}>
+                        <p className={`p-1 text-sm ${selectedFile === '' ? 'border-2 rounded-sm' : 'ml-5'}`}>
                             <label htmlFor="file">
                                 {selectedFile === "" ? "Select Image" : selectedFile}
                             </label>
@@ -136,16 +142,24 @@ function MainUI() {
                     <div className="font-bold">Action Buttons</div>
                     <div className="ml-4 flex-grow h-1 bg-gray-100"></div>
                 </div>
-                <div className="w-full m-2 flex flex-row">
-                    <button className="button-base" onClick={handleCenterClick}>
-                        Center
-                    </button>
+                <div className="w-full m-2 flex flex-row items-center">
+                    <div>
+                        <button className="button-base" onClick={handleCenterClick}>
+                            Center
+                        </button>
+                    </div>
+                    <div className="mx-2">
+                        <button className="button-base" onClick={handleMaxOutClick}>
+                            Max Out
+                        </button>
+                    </div>
                 </div>
             </div>
             <div className="canvas-containers">
                 <div className="preview-container mr-2">
                     <PreviewCanvas
                         center={center}
+                        maxout={maxout}
                         svgContent={svgContent}
                         onResizeUpdate={onResizeUpdate}
                         onPositionUpdate={onPositionUpdate}>
