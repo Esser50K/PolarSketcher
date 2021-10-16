@@ -54,7 +54,7 @@ def split_path(path: Path) -> list[Path]:
     return subpaths
 
 
-def get_points(path: Path, render_translate=(0, 0), render_scale=1.0, points_per_mm=2.0):
+def get_points(path: ToolsPath, render_translate=(0, 0), render_scale=1.0, points_per_mm=2.0):
     try:
         path_len = path.length()
     except ZeroDivisionError:

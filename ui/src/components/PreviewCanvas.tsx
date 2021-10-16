@@ -20,7 +20,6 @@ const rndStyle = {
 }
 
 function PreviewCanvas(props: CanvasProps) {
-  const [originalSVGDimensions, setOriginalSVGDimensions] = useState({ width: 0, height: 0 });
   const [contentDimensions, setContentDimensions] = useState({ width: 0, height: 0 });
   const [contentPosition, setContentPosition] = useState({ x: 0, y: 0 });
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
@@ -126,20 +125,13 @@ function PreviewCanvas(props: CanvasProps) {
     if (svgContent) {
       const viewBoxAny = (svgContent.viewBox as any)
       const dimensions = (viewBoxAny ? viewBoxAny.baseVal : svgContent.bbox) as SVGRect
-      setOriginalSVGDimensions({ width: dimensions.width || 0, height: dimensions.height || 0 })
-      console.info("ContentDimensions", dimensions.width, canvasDimensions.width, dimensions.height, canvasDimensions.height);
       const contentDimensionsWidth = Math.min(dimensions.width || 0, canvasDimensions.width);
       const contentDimensionsHeight = Math.min(dimensions.height || 0, canvasDimensions.height);
       (svgContent as HTMLElement).setAttribute("width", String(contentDimensionsHeight) + "px");
       (svgContent as HTMLElement).setAttribute("height", String(contentDimensionsWidth) + "px");
       setCurrentSVGContent(svgContent as HTMLElement);
-      console.info("RESIZING")
       resize(contentDimensionsWidth, contentDimensionsHeight);
-      console.info("RIGHT HERE")
     }
-    // resize(content?.offsetWidth || 0, content?.offsetWidth || 0);
-    console.info("WIDTH:", content?.offsetWidth)
-    console.info("HEIGHT:", content?.offsetHeight)
   }, [props.svgContent])
 
   useEffect(() => {
@@ -147,8 +139,6 @@ function PreviewCanvas(props: CanvasProps) {
       const canvas = document.getElementById("canvas")
       // setting both as width since canvas is always square
       setCanvasDimensions({ width: canvas?.offsetWidth || 0, height: canvas?.offsetWidth || 0 })
-      console.info("CANVAS WIDTH:", canvas?.offsetWidth)
-      console.info("CANVAS HEIGHT:", canvas?.offsetHeight)
     }
   }, [])
 

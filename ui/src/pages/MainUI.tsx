@@ -3,17 +3,25 @@ import '../index.css';
 import './MainUI.css';
 import PreviewCanvas from '../components/PreviewCanvas'
 import SimulationCanvas from '../components/SimulationCanvas'
+import Dropdown from '../units/Dropdown';
+import Divider from '../units/Divider';
+import NumberInput from '../units/NumberInput';
+import RangeInput from '../units/RangeInput';
 
 function MainUI() {
     const [selectedFile, setSelectedFile] = useState("");
     const [svgContent, setSvgContent] = useState("");
-    const [center, setCenter] = useState(false);
-    const [maxout, setMaxout] = useState(false);
     const [runningJobId, setRunningJobId] = useState("");
     const [websocket, setWebsocket] = useState<WebSocket>();
     const [drawnPoints, setDrawnPoints] = useState<[number, number][]>([]);
     const [contentSize, setCotentSize] = useState([600, 600]);
     const [contentPosition, setContentPosition] = useState({ x: 0, y: 0 });
+
+    // edit tools
+    const [center, setCenter] = useState(false);
+    const [maxout, setMaxout] = useState(false);
+    const [cutLeft, setCutLeft] = useState(false);
+    const [cutRight, setCutRight] = useState(false);
 
     const handleSelectImage = (event: React.ChangeEvent<HTMLInputElement>) => {
         console.info(typeof (event), event.target.files?.item(0));
@@ -42,7 +50,7 @@ function MainUI() {
 
         try {
             const canvasDiv = document.getElementById("simulation-canvas");
-            const ratio = canvasDiv!.offsetWidth / 600;
+            const ratio = canvasDiv!.offsetWidth / 600;  // TODO: remove hardcoded arm length
 
             const body = {
                 position: [contentPosition.x / ratio, contentPosition.y / ratio],
@@ -110,18 +118,26 @@ function MainUI() {
     useEffect(() => {
         setCenter(false)
         setMaxout(false)
-    }, [center, maxout])
+        setCutLeft(false)
+        setCutRight(false)
+    }, [center, maxout, cutLeft, cutRight])
 
     return (
         <div className="upload-container m-2">
-            <div className="flex flex-col items-center justify-center m-8">
-                <div className="w-full flex flex-row items-center justify-start">
-                    {selectedFile !== "" ? <div>
-                        <button
-                            className="button-base"
-                            onClick={handleUpload}>Upload Image
-                        </button>
-                    </div> : null}
+            <div className="m-8">
+                <div className="w-full flex flex-row items-end justify-start">
+                    <Dropdown
+                        label="Runner"
+                        options={{ "dryrunner": "Dry Runner", "polarsketcher": "Polar Sketcher" }}
+                        onValueChange={(val) => { console.info(val) }}
+                    ></Dropdown>
+                    {selectedFile !== "" ?
+                        <div>
+                            <button
+                                className="button-base ml-2"
+                                onClick={handleUpload}>Upload Image
+                            </button>
+                        </div> : null}
                     <div className="flex items-center">
                         <input type="file"
                             accept="image/svg+xml"
@@ -130,28 +146,37 @@ function MainUI() {
                             style={{ "display": "none" }}
                             onChange={handleSelectImage}>
                         </input>
-                        <p className={`p-1 text-sm ${selectedFile === '' ? 'border-2 rounded-sm' : 'ml-5'}`}>
+                        <p className={`ml-2 p-1 text-sm ${selectedFile === '' ? 'border-2 rounded-sm' : ''}`}>
                             <label htmlFor="file">
                                 {selectedFile === "" ? "Select Image" : selectedFile}
                             </label>
                         </p>
                     </div>
                 </div>
-                <div className="w-full mt-1 mb-1 flex flex-row items-center">
-                    <div className="mr-4 flex-grow h-1 bg-gray-100"></div>
-                    <div className="font-bold">Action Buttons</div>
-                    <div className="ml-4 flex-grow h-1 bg-gray-100"></div>
-                </div>
-                <div className="w-full m-2 flex flex-row items-center">
-                    <div>
-                        <button className="button-base" onClick={handleCenterClick}>
-                            Center
+                <Divider title="Edit Tools"></Divider>
+                <div className="w-full m-2 flex flex-row items-stretch">
+                    <div className="flex">
+                        <button className="button-base" onClick={() => setCenter(true)}>
+                            center
                         </button>
                     </div>
-                    <div className="mx-2">
-                        <button className="button-base" onClick={handleMaxOutClick}>
-                            Max Out
+                    <div className="flex ml-2">
+                        <button className="button-base" onClick={() => setMaxout(true)}>
+                            max out
                         </button>
+                    </div>
+                    <div className="flex ml-2">
+                        <button className="button-base" onClick={() => setCutLeft(true)}>
+                            cut left
+                        </button>
+                    </div>
+                    <div className="flex ml-2">
+                        <button className="button-base" onClick={() => setCutRight(true)}>
+                            cut right
+                        </button>
+                    </div>
+                    <div className="flex ml-2">
+                        <RangeInput title="rotate" max={360}></RangeInput>
                     </div>
                 </div>
             </div>
@@ -167,8 +192,61 @@ function MainUI() {
                 </div>
 
                 <div className="preview-container ml-2">
-                    <SimulationCanvas ws={websocket}>
-                    </SimulationCanvas>
+                    <SimulationCanvas
+                        ws={websocket}
+                        cutleft={cutLeft}
+                        cutright={cutRight}
+                    ></SimulationCanvas>
+                </div>
+            </div>
+
+            {/* Toolpath Generation Algo Config */}
+            <div className="m-8">
+                <Divider title="Toolpath Generation Algorithm Config"></Divider>
+                <div className="flex flex-row justify-start items-stretch">
+                    <div className="flex">
+                        <Dropdown
+                            label="toolpath generation algorithm"
+                            options={{
+                                "lines": "Lines",
+                                "zigzag": "ZigZag",
+                                "rectlines": "RectLines",
+                                "continuous-rectlines": "Continuous RectLines",
+                            }}
+                            onValueChange={(val) => { console.info(val) }}
+                        ></Dropdown>
+                    </div>
+                    <div className="ml-5 flex">
+                        <NumberInput title="number of Lines"></NumberInput>
+                    </div>
+                    <div className="ml-5 flex">
+                        <RangeInput title="angle" max={360}></RangeInput>
+                    </div>
+                </div>
+            </div>
+
+            {/* Sort Path Algorithm Config*/}
+            <div className="m-8">
+                <Divider title="Sort Path Algorithm Config"></Divider>
+                <div className="flex flex-row justify-start items-stretch">
+                    <div className="flex">
+                        <Dropdown
+                            label="toolpath Algorithm"
+                            options={{
+                                "simple": "Simple",
+                                "simple_variant1": "Simple Variant1",
+                                "simple_variant2": "Simple Variant2",
+                                "radar_scan": "Radar Scan",
+                            }}
+                            onValueChange={(val) => { console.info(val) }}
+                        ></Dropdown>
+                    </div>
+                    <div className="ml-5 flex">
+                        <NumberInput title="Start X" default={0}></NumberInput>
+                    </div>
+                    <div className="ml-5 flex">
+                        <NumberInput title="Start Y" default={0}></NumberInput>
+                    </div>
                 </div>
             </div>
         </div >

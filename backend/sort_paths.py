@@ -1,5 +1,6 @@
 import math
-from svgelements import Path, Circle
+from svgpathtools import Path
+from svgelements import Circle
 
 
 class ClosedPath:

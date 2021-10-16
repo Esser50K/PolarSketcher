@@ -42,13 +42,13 @@
   appearance: none;
   width: 25px; /* Set a specific slider handle width */
   height: 25px; /* Slider handle height */
-  background: #04AA6D; /* Green background */
   cursor: pointer; /* Cursor on hover */
+  @apply bg-green-500
 }
 
 .slider::-moz-range-thumb {
   width: 25px; /* Set a specific slider handle width */
   height: 25px; /* Slider handle height */
-  background: #04AA6D; /* Green background */
   cursor: pointer; /* Cursor on hover */
+  @apply bg-green-500
 }

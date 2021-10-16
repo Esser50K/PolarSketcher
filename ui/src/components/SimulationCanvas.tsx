@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useRef, CanvasHTMLAttributes } from 'react';
 import "../index.css"
+import RangeInput from '../units/RangeInput';
 import "./SimulationCanvas.css"
 
 const targetSize = 600;
 
 interface CanvasProps {
   ws?: WebSocket
+  cutleft?: boolean
+  cutright?: boolean
   points?: [number, number][]
   children?: React.ReactNode
 }
@@ -28,7 +31,6 @@ const debounce = (callback: (...params: any[]) => any, delay: number) => {
 
 function SimulationCanvas(props: CanvasProps) {
   const canvas = useRef(null);
-  const slider = useRef(null);
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
   const [progressIndex, setProgressIndex] = useState(0);
   const [drawnPoints, setDrawnPoints] = useState<[number, number][]>([]);
@@ -85,7 +87,6 @@ function SimulationCanvas(props: CanvasProps) {
     }
 
     const debouncedRedraw = debounce(() => {
-      console.info("REDRAW")
       setProgressIndex(drawnPoints.length)
     }, 10);
 
@@ -120,10 +121,20 @@ function SimulationCanvas(props: CanvasProps) {
 
   }, [progressIndex])
 
-  const handleOnChange = (event: any) => {
-    if (event?.target?.value) {
-      setProgressIndex(event.target.value)
-    }
+  useEffect(() => {
+    setDrawnPoints(drawnPoints.slice(progressIndex, drawnPoints.length - 1));
+  }, [props.cutleft])
+
+  useEffect(() => {
+    setDrawnPoints(drawnPoints.slice(0, progressIndex));
+  }, [props.cutright])
+
+  useEffect(() => {
+    redraw();
+  }, [drawnPoints])
+
+  const handleOnChange = (value: any) => {
+    setProgressIndex(value)
   }
 
   const clearCanvas = () => {
@@ -144,15 +155,14 @@ function SimulationCanvas(props: CanvasProps) {
           <canvas ref={canvas}></canvas>
         </div>
       </div >
-      <div className="w-full pt-2">
-        <input
-          ref={slider}
-          onChange={handleOnChange}
-          type="range"
-          min="0"
-          max={String(drawnPoints.length) || "0"}
-          value={String(progressIndex)}
-          className="slider h-full border-2"></input>
+      <div className="w-full pt-2 mb-2">
+        <RangeInput
+          hideValue
+          min={0}
+          max={drawnPoints.length || 0}
+          default={progressIndex}
+          onValueChange={handleOnChange}
+        ></RangeInput>
       </div>
       <div className="flex content-start">
         <button className="button-base" onClick={clearCanvas}>Clear Canvas</button>
