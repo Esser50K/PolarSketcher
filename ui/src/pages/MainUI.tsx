@@ -94,12 +94,10 @@ function MainUI() {
         webSocket.onclose = () => {
             setRunningJobId("");
             setWebsocket(undefined);
-            console.info("WEBSOCKET DONE");
         }
         webSocket.onerror = () => {
             setRunningJobId("");
             setWebsocket(undefined);
-            console.info("WEBSOCKET ERROR");
         }
         webSocket.onmessage = (event: MessageEvent) => {
             const update = JSON.parse(event.data);

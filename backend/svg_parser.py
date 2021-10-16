@@ -100,7 +100,7 @@ class SVGParser:
         self.canvas_size = canvas_size  # (Length("600cm"), Length("600cm"))
         self.paths = None
 
-    def parse(self, path: str, split_parse=False):
+    def parse(self, path: str):
         self.paths = []
         if not os.path.exists(path):
             f = NamedTemporaryFile("w")
@@ -110,17 +110,10 @@ class SVGParser:
 
         self.svg = SVG.parse(path)
         subpaths = self.get_paths()
-        if split_parse:
-            paths, attrs = svg2paths(path)
-            # self.paths = split_svgpathtool_path(paths)
-            self.paths = full_split_svgpathtool_paths(paths)
-            print("Split Paths", len(self.paths))
-            self.svg_path = ToolsPath(*self.paths)
-        else:
-            parsed_paths = []
-            for i in range(len(subpaths)):
-                parsed_paths.append(ToolsPath(subpaths[i].d()))
-            self.paths = parsed_paths
+        parsed_paths = []
+        for i in range(len(subpaths)):
+            parsed_paths.append(ToolsPath(subpaths[i].d()))
+        self.paths = parsed_paths
 
     def get_paths(self) -> list[Path]:
         if self.paths:
