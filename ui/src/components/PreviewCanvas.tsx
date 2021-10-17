@@ -5,6 +5,7 @@ import { Rnd } from 'react-rnd';
 
 interface CanvasProps {
   svgContent?: string
+  rotation?: number
   center?: boolean
   maxout?: boolean
   children?: React.ReactNode
@@ -50,12 +51,16 @@ function PreviewCanvas(props: CanvasProps) {
   }
 
   useEffect(() => {
+    if (canvasDimensions.height === 0) {
+      const canvas = document.getElementById("canvas")
+      // setting both as width since canvas is always square
+      setCanvasDimensions({ width: canvas?.offsetWidth || 0, height: canvas?.offsetWidth || 0 })
+    }
+
     window.addEventListener('resize', (event) => {
       const canvas = document.getElementById("canvas")
       // setting both as width since canvas is always square
       setCanvasDimensions({ width: canvas?.offsetWidth || 0, height: canvas?.offsetWidth || 0 })
-
-
       setWidowResizeEvent(event)
     })
   }, [])
@@ -71,7 +76,6 @@ function PreviewCanvas(props: CanvasProps) {
     if (!props.center) {
       return
     }
-
 
     const x = (canvasDimensions.width / 2) - (contentDimensions.width / 2);
     const y = (canvasDimensions.height / 2) - (contentDimensions.height / 2);
@@ -104,6 +108,16 @@ function PreviewCanvas(props: CanvasProps) {
   }, [props.maxout])
 
   useEffect(() => {
+    if (!props.rotation) {
+      return
+    }
+
+    const x = (canvasDimensions.width / 2) - (contentDimensions.width / 2);
+    const y = (canvasDimensions.height / 2) - (contentDimensions.height / 2);
+    setNewPos(x, y);
+  }, [props.rotation])
+
+  useEffect(() => {
     if (contentDimensions.height !== 0) {
       return
     }
@@ -133,14 +147,6 @@ function PreviewCanvas(props: CanvasProps) {
       resize(contentDimensionsWidth, contentDimensionsHeight);
     }
   }, [props.svgContent])
-
-  useEffect(() => {
-    if (canvasDimensions.height === 0) {
-      const canvas = document.getElementById("canvas")
-      // setting both as width since canvas is always square
-      setCanvasDimensions({ width: canvas?.offsetWidth || 0, height: canvas?.offsetWidth || 0 })
-    }
-  }, [])
 
   return (
     <div className="canvas-container">
@@ -172,7 +178,10 @@ function PreviewCanvas(props: CanvasProps) {
               enableResizing={{ "bottomRight": true }}
             >
               {props.svgContent ?
-                <div id="canvas-content" className="canvas-content" /*style={{ height: contentDimensions.height, width: contentDimensions.width }}*/ dangerouslySetInnerHTML={{ __html: props.svgContent }}>
+                <div id="canvas-content" className="canvas-content"
+                  /*style={{ height: contentDimensions.height, width: contentDimensions.width }}*/
+                  style={{ transform: `rotate(${props.rotation}deg)` }}
+                  dangerouslySetInnerHTML={{ __html: props.svgContent }}>
                 </div> : null}
             </Rnd> : null}
       </div>

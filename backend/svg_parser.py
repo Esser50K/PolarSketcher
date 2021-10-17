@@ -1,7 +1,7 @@
 import io
 import os
 from tempfile import NamedTemporaryFile
-from svgelements import SVG, SVGText, SVGImage, Path, Shape, Length
+from svgelements import SVG, SVGText, SVGImage, Path, Shape, Length, Viewbox
 from svgpathtools import Path as ToolsPath, svg2paths
 from sort_paths import sort_paths
 
@@ -54,7 +54,7 @@ def split_path(path: Path) -> list[Path]:
     return subpaths
 
 
-def get_points(path: ToolsPath, render_translate=(0, 0), render_scale=1.0, points_per_mm=2.0):
+def get_points(path: ToolsPath, viewbox: Viewbox, render_translate=(0, 0), render_scale=1.0, rotation=0, points_per_mm=2.0):
     try:
         path_len = path.length()
     except ZeroDivisionError:
@@ -72,6 +72,7 @@ def get_points(path: ToolsPath, render_translate=(0, 0), render_scale=1.0, point
     if total_points == 0:
         return
 
+    path = path.rotated(rotation, complex(viewbox.width/2, viewbox.height/2))
     for point in (path.point(i / total_points) for i in range(0, total_points + 1)):
         yield ((point.real * render_scale) + render_translate[0],
                (point.imag * render_scale) + render_translate[1])
@@ -150,10 +151,10 @@ class SVGParser:
 
         return self.paths
 
-    def get_all_points(self, paths: list[Path], render_translate=(0, 0), render_scale=1.0, optimize_paths=False,
-                       scale_to_fit=True, center=False, use_viewbox_canvas=False, points_per_mm=2):
-        bbox_width = self.svg.bbox()[2] - self.svg.bbox()[0]
-        bbox_height = self.svg.bbox()[3] - self.svg.bbox()[1]
+    def get_all_points(self, paths: list[Path], render_translate=(0, 0), render_scale=1.0, rotation=0,
+                       optimize_paths=False, scale_to_fit=True, use_viewbox_canvas=False, points_per_mm=2):
+        # bbox_width = self.svg.bbox()[2] - self.svg.bbox()[0]
+        # bbox_height = self.svg.bbox()[3] - self.svg.bbox()[1]
         width = int(self.canvas_size[0].amount * self.canvas_scale)
         height = int(self.canvas_size[1].amount * self.canvas_scale)
 
@@ -165,6 +166,8 @@ class SVGParser:
             width = int(self.svg.viewbox.width)
             height = int(self.svg.viewbox.height)
 
+        """
+        # TODO center bbox
         if center:
             scaled_bbox_width = bbox_width * render_scale
             scaled_bbox_height = bbox_height * render_scale
@@ -173,10 +176,11 @@ class SVGParser:
             render_translate = list(render_translate)  # convert to list
             render_translate[0] = -scaled_offset[0] + (width - scaled_bbox_width) / 2
             render_translate[1] = -scaled_offset[1] + (height - scaled_bbox_height) / 2
+        """
 
         if optimize_paths:
             paths = sort_paths(complex(0, self.svg.viewbox.height), paths, (width, height))
 
         for path in paths:
-            for point in get_points(path, render_translate, render_scale, points_per_mm):
+            for point in get_points(path, self.svg.viewbox, render_translate, render_scale, rotation, points_per_mm):
                 yield point

@@ -94,16 +94,16 @@ class DryrunDrawer:
     def get_job(self) -> Union[DrawingJob, None]:
         return self.current_job
 
-    def draw(self, path: str, offset=(0, 0), scale=1.0, size=(0, 0)) -> str:
+    def draw(self, path: str, offset=(0, 0), scale=1.0, size=(0, 0), rotation=0) -> str:
         self.parser.parse(path)
-        return self.start_drawing(offset=offset, render_scale=scale, render_size=size)
+        return self.start_drawing(offset=offset, render_scale=scale, render_size=size, rotation=rotation)
 
     def start_drawing(self,
-                      center=False,
                       scale_to_fit=False,
                       offset=(0, 0),
                       render_scale=1.0,
                       render_size=(0, 0),
+                      rotation=0,
                       points_per_mm=.2) -> str:
 
         if self.current_job:
@@ -113,11 +113,11 @@ class DryrunDrawer:
         shutdown_queue = Queue()
         update_queue = Queue()
         worker = Thread(target=self._start_drawing,
-                        kwargs={"center": center,
-                                "scale_to_fit": scale_to_fit,
+                        kwargs={"scale_to_fit": scale_to_fit,
                                 "offset": offset,
                                 "render_scale": render_scale,
                                 "render_size": render_size,
+                                "rotation": rotation,
                                 "points_per_mm": points_per_mm,
                                 "shutdown_queue": shutdown_queue,
                                 "update_queue": update_queue})
@@ -127,11 +127,11 @@ class DryrunDrawer:
         return str(job_id)
 
     def _start_drawing(self,
-                       center=False,
                        scale_to_fit=False,
                        offset=(0, 0),
                        render_scale=1.0,
                        render_size=(0, 0),
+                       rotation=0,
                        points_per_mm=2,
                        shutdown_queue=Queue(),
                        update_queue=Queue()):
@@ -144,8 +144,6 @@ class DryrunDrawer:
             width_scale = svg.viewbox.width / bbox_width
             height_scale = svg.viewbox.height / bbox_height
             fix_render_scale = min(width_scale, height_scale)  # meant to preserve aspect ratio
-            bbox_width = bbox_width * fix_render_scale
-            bbox_height = bbox_height * fix_render_scale
             render_scale *= fix_render_scale
 
         render_translate = offset
@@ -155,15 +153,15 @@ class DryrunDrawer:
             render_scale *= max(render_scale_width, render_scale_height)
 
         all_paths = self.parser.paths
-        # all_paths = list(rect_lines3(all_paths,
-        #                              (max(original_bbox_width, int(svg.viewbox.width)),
-        #                               max(original_bbox_height, int(svg.viewbox.height))),
-        #                              n_lines=50))
+        all_paths = list(rect_lines3(all_paths,
+                                     (max(original_bbox_width, int(svg.viewbox.width)),
+                                      max(original_bbox_height, int(svg.viewbox.height))),
+                                     n_lines=50))
         for point in self.parser.get_all_points(paths=all_paths,
-                                                center=center,
                                                 render_translate=render_translate,
                                                 render_scale=render_scale,
                                                 scale_to_fit=scale_to_fit,
+                                                rotation=rotation,
                                                 points_per_mm=points_per_mm):
             update_queue.put(point)
 

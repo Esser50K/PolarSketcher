@@ -22,6 +22,7 @@ function MainUI() {
     const [maxout, setMaxout] = useState(false);
     const [cutLeft, setCutLeft] = useState(false);
     const [cutRight, setCutRight] = useState(false);
+    const [rotation, setRotation] = useState(0);
 
     const handleSelectImage = (event: React.ChangeEvent<HTMLInputElement>) => {
         console.info(typeof (event), event.target.files?.item(0));
@@ -33,14 +34,6 @@ function MainUI() {
             reader.readAsText(event.target.files[0]);
             setSelectedFile(event.target.files[0].name);
         }
-    }
-
-    const handleCenterClick = () => {
-        setCenter(true);
-    }
-
-    const handleMaxOutClick = () => {
-        setMaxout(true);
     }
 
     const handleUpload = async () => {
@@ -55,6 +48,7 @@ function MainUI() {
             const body = {
                 position: [contentPosition.x / ratio, contentPosition.y / ratio],
                 size: [contentSize[0] / ratio, contentSize[1] / ratio],
+                rotation: rotation,
                 svg: svgContent
             }
 
@@ -174,13 +168,14 @@ function MainUI() {
                         </button>
                     </div>
                     <div className="flex ml-2">
-                        <RangeInput title="rotate" max={360}></RangeInput>
+                        <RangeInput title="rotate" max={360} onValueChange={(val) => setRotation(parseInt(val))}></RangeInput>
                     </div>
                 </div>
             </div>
             <div className="canvas-containers">
                 <div className="preview-container mr-2">
                     <PreviewCanvas
+                        rotation={rotation}
                         center={center}
                         maxout={maxout}
                         svgContent={svgContent}

@@ -40,7 +40,8 @@ def upload():
     except json.JSONDecodeError:
         return BadRequest("could not understand request")
 
-    return str(drawer.draw(params["svg"], params["position"], size=params["size"]))
+    job_id = drawer.draw(params["svg"], params["position"], size=params["size"], rotation=params["rotation"])
+    return job_id
 
 
 @sockets.route('/updates')
