@@ -29,6 +29,11 @@ function MainUI() {
     const [nToolpathLines, setNToolpathLines] = useState(100);
     const [toolpathAngle, setToolpathAngle] = useState(0);
 
+    // toolpath algorithm config
+    const [pathSortingAlgorithm, setPathSortingAlgorithm] = useState("");
+    const [searchStartX, setSearchStartX] = useState(0);
+    const [searchStartY, setSearchStartY] = useState(0);
+
     const handleSelectImage = (event: React.ChangeEvent<HTMLInputElement>) => {
         console.info(typeof (event), event.target.files?.item(0));
         const reader = new FileReader();
@@ -54,10 +59,15 @@ function MainUI() {
                 position: [contentPosition.x / ratio, contentPosition.y / ratio],
                 size: [contentSize[0] / ratio, contentSize[1] / ratio],
                 rotation: rotation,
-                toolpath_configs: {
+                toolpath_config: {
                     algorithm: toolpathAlgorithm,
                     n_lines: nToolpathLines,
                     angle: toolpathAngle,
+                },
+                pathsort_config: {
+                    algorithm: pathSortingAlgorithm,
+                    x: searchStartX,
+                    y: searchStartY,
                 },
                 svg: svgContent
             }
@@ -242,14 +252,14 @@ function MainUI() {
                                 "simple_variant2": "Simple Variant2",
                                 "radar_scan": "Radar Scan",
                             }}
-                            onValueChange={(val) => { console.info(val) }}
+                            onValueChange={(val) => { setPathSortingAlgorithm(val) }}
                         ></Dropdown>
                     </div>
                     <div className="ml-5 flex">
-                        <NumberInput title="Start X" default={0} max={600}></NumberInput>
+                        <NumberInput title="Start X" default={0} max={600} onValueChange={(val) => { setSearchStartX(parseInt(val)) }}></NumberInput>
                     </div>
                     <div className="ml-5 flex">
-                        <NumberInput title="Start Y" default={0} max={600}></NumberInput>
+                        <NumberInput title="Start Y" default={0} max={600} onValueChange={(val) => { setSearchStartY(parseInt(val)) }}></NumberInput>
                     </div>
                 </div>
             </div>

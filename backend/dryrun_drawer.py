@@ -5,6 +5,7 @@ from svg_parser import SVGParser
 from threading import Thread, Event
 from geventwebsocket.websocket import WebSocket
 from toolpath_generation import TOOLPATHS
+from sort_paths import SORTING_ALGORITHMS, sort_paths
 from typing import Union
 
 class DrawingJob:
@@ -94,16 +95,26 @@ class DryrunDrawer:
     def get_job(self) -> Union[DrawingJob, None]:
         return self.current_job
 
-    def draw(self, path: str, offset=(0, 0), scale=1.0, size=(0, 0), rotation=0, toolpath_configs=None) -> str:
-        if toolpath_configs is None:
-            toolpath_configs = {}
+    def draw(self,
+             path: str,
+             offset=(0, 0),
+             scale=1.0,
+             size=(0, 0),
+             rotation=0,
+             toolpath_config=None,
+             pathsort_config=None) -> str:
+        if toolpath_config is None:
+            toolpath_config = {}
+        if pathsort_config is None:
+            pathsort_config = {}
 
         self.parser.parse(path)
         return self.start_drawing(offset=offset,
                                   render_scale=scale,
                                   render_size=size,
                                   rotation=rotation,
-                                  toolpath_configs=toolpath_configs)
+                                  toolpath_config=toolpath_config,
+                                  pathsort_config=pathsort_config)
 
     def start_drawing(self,
                       scale_to_fit=False,
@@ -112,10 +123,12 @@ class DryrunDrawer:
                       render_size=(0, 0),
                       rotation=0,
                       points_per_mm=.2,
-                      toolpath_configs=None) -> str:
-
-        if toolpath_configs is None:
-            toolpath_configs = {}
+                      toolpath_config=None,
+                      pathsort_config=None) -> str:
+        if toolpath_config is None:
+            toolpath_config = {}
+        if pathsort_config is None:
+            pathsort_config = {}
 
         if self.current_job:
             self.current_job.stop()
@@ -132,7 +145,8 @@ class DryrunDrawer:
                                 "points_per_mm": points_per_mm,
                                 "shutdown_queue": shutdown_queue,
                                 "update_queue": update_queue,
-                                "toolpath_configs": toolpath_configs})
+                                "toolpath_config": toolpath_config,
+                                "pathsort_config": pathsort_config})
         job_id = uuid.uuid4()
         self.current_job = DrawingJob(job_id, worker, shutdown_queue, update_queue)
         self.current_job.start()
@@ -147,10 +161,12 @@ class DryrunDrawer:
                        points_per_mm=2,
                        shutdown_queue=Queue(),
                        update_queue=Queue(),
-                       toolpath_configs=None):
-
-        if toolpath_configs is None:
-            toolpath_configs = {}
+                       toolpath_config=None,
+                       pathsort_config=None):
+        if toolpath_config is None:
+            toolpath_config = {}
+        if pathsort_config is None:
+            pathsort_config = {}
 
         render_translate = offset
         if render_size != (0, 0):
@@ -160,14 +176,24 @@ class DryrunDrawer:
 
         all_paths = self.parser.paths
 
-        toolpath = TOOLPATHS[toolpath_configs["algorithm"]] \
-            if "algorithm" in toolpath_configs.keys() and toolpath_configs["algorithm"] in TOOLPATHS.keys() \
+        toolpath = TOOLPATHS[toolpath_config["algorithm"]] \
+            if "algorithm" in toolpath_config.keys() and toolpath_config["algorithm"] in TOOLPATHS.keys() \
             else None
 
         if toolpath is not None:
-            all_paths = toolpath(all_paths,
+            all_paths = list(toolpath(all_paths,
                                  (self.parser.canvas_size[0].amount, self.parser.canvas_size[1].amount),
-                                 n_lines=toolpath_configs["n_lines"])
+                                 n_lines=toolpath_config["n_lines"]))
+
+        pathsort_algo = SORTING_ALGORITHMS[pathsort_config["algorithm"]] \
+            if "algorithm" in pathsort_config.keys() and pathsort_config["algorithm"] in SORTING_ALGORITHMS.keys() \
+            else None
+
+        if pathsort_algo is not None:
+            all_paths = sort_paths(paths=all_paths,
+                                   start_point=complex(pathsort_config["x"], pathsort_config["y"]),
+                                   canvas_size=(self.parser.canvas_size[0].amount, self.parser.canvas_size[1].amount),
+                                   sorting_algo=pathsort_algo)
 
         for point in self.parser.get_all_points(paths=all_paths,
                                                 render_translate=render_translate,

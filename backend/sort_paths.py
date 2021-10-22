@@ -17,6 +17,9 @@ class ClosedPath:
     def bbox(self):
         return self.path.bbox()
 
+    def rotated(self, rotation, origin):
+        return self.path.rotated(rotation, origin)
+
 
 def calc_distance(a: complex, b: complex) -> float:
     return math.sqrt(((a.real-b.real)**2) + ((a.imag-b.imag)**2))
@@ -114,7 +117,7 @@ def find_closest_path_with_circular_path_check(last_point: complex, paths: list[
         start_point = p.point(0)
         end_point = p.point(1)
         if closest_path is None:
-            if start_point == end_point:
+            if p.isclosed():
                 closest_point, closest_distance = find_closest_point(last_point, p, step=step)
                 closest_path = ClosedPath(p, new_start=closest_point)
             else:
@@ -128,7 +131,7 @@ def find_closest_path_with_circular_path_check(last_point: complex, paths: list[
 
         start_dist = calc_distance(last_point, start_point)
         end_dist = calc_distance(last_point, end_point)
-        if start_point == end_point:
+        if p.isclosed():
             closest_point, distance = find_closest_point(last_point, p, step=step)
             if distance < closest_distance:
                 closest_distance = distance
@@ -196,17 +199,16 @@ def find_closest_path_with_radar_scan(last_point: complex, paths: list[Path], si
         radar_path = Circle(cx=last_point.real, cy=last_point.imag, rx=radius, ry=radius)
 
 
-def sort_paths(start_point: complex, paths: list[Path], canvas_size: tuple[int, int], strategy="simple_variant1") -> list[Path]:
-    strategy_func = STRATEGIES[strategy]
+def sort_paths(start_point: complex, paths: list[Path], canvas_size: tuple[int, int], sorting_algo=find_closest_path) -> list[Path]:
     last_point = start_point
     while len(paths) != 0:
-        path, paths = strategy_func(last_point, paths, canvas_size)
+        path, paths = sorting_algo(last_point, paths, canvas_size)
         yield path
 
         last_point = path.point(1)
 
 
-STRATEGIES = {
+SORTING_ALGORITHMS = {
     "none": None,
     "simple": find_closest_path,
     "simple_variant1": find_closest_path_with_endpoint,

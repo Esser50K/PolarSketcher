@@ -43,7 +43,8 @@ def upload():
     job_id = drawer.draw(params["svg"], params["position"],
                          size=params["size"],
                          rotation=params["rotation"],
-                         toolpath_configs=params["toolpath_configs"])
+                         toolpath_config=params["toolpath_config"],
+                         pathsort_config=params["pathsort_config"])
     return job_id
 
 
