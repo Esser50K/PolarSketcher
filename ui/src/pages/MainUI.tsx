@@ -24,6 +24,11 @@ function MainUI() {
     const [cutRight, setCutRight] = useState(false);
     const [rotation, setRotation] = useState(0);
 
+    // toolpath algorithm config
+    const [toolpathAlgorithm, setToolpathAlgorithm] = useState("");
+    const [nToolpathLines, setNToolpathLines] = useState(100);
+    const [toolpathAngle, setToolpathAngle] = useState(0);
+
     const handleSelectImage = (event: React.ChangeEvent<HTMLInputElement>) => {
         console.info(typeof (event), event.target.files?.item(0));
         const reader = new FileReader();
@@ -49,6 +54,11 @@ function MainUI() {
                 position: [contentPosition.x / ratio, contentPosition.y / ratio],
                 size: [contentSize[0] / ratio, contentSize[1] / ratio],
                 rotation: rotation,
+                toolpath_configs: {
+                    algorithm: toolpathAlgorithm,
+                    n_lines: nToolpathLines,
+                    angle: toolpathAngle,
+                },
                 svg: svgContent
             }
 
@@ -201,19 +211,19 @@ function MainUI() {
                         <Dropdown
                             label="toolpath generation algorithm"
                             options={{
+                                "none": "None",
                                 "lines": "Lines",
                                 "zigzag": "ZigZag",
                                 "rectlines": "RectLines",
-                                "continuous-rectlines": "Continuous RectLines",
                             }}
-                            onValueChange={(val) => { console.info(val) }}
+                            onValueChange={(val) => { setToolpathAlgorithm(val) }}
                         ></Dropdown>
                     </div>
                     <div className="ml-5 flex">
-                        <NumberInput title="number of Lines"></NumberInput>
+                        <NumberInput title="number of Lines" onValueChange={(val) => { setNToolpathLines(parseInt(val)) }}></NumberInput>
                     </div>
                     <div className="ml-5 flex">
-                        <RangeInput title="angle" max={360}></RangeInput>
+                        <RangeInput title="angle" max={360} onValueChange={(val) => { setToolpathAngle(parseInt(val)) }}></RangeInput>
                     </div>
                 </div>
             </div>
@@ -224,8 +234,9 @@ function MainUI() {
                 <div className="flex flex-row justify-start items-stretch">
                     <div className="flex">
                         <Dropdown
-                            label="toolpath Algorithm"
+                            label="path sorting algorithm"
                             options={{
+                                "none": "None",
                                 "simple": "Simple",
                                 "simple_variant1": "Simple Variant1",
                                 "simple_variant2": "Simple Variant2",
@@ -235,10 +246,10 @@ function MainUI() {
                         ></Dropdown>
                     </div>
                     <div className="ml-5 flex">
-                        <NumberInput title="Start X" default={0}></NumberInput>
+                        <NumberInput title="Start X" default={0} max={600}></NumberInput>
                     </div>
                     <div className="ml-5 flex">
-                        <NumberInput title="Start Y" default={0}></NumberInput>
+                        <NumberInput title="Start Y" default={0} max={600}></NumberInput>
                     </div>
                 </div>
             </div>

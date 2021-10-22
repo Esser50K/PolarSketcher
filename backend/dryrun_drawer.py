@@ -4,9 +4,8 @@ from queue import Queue, Empty, Full
 from svg_parser import SVGParser
 from threading import Thread, Event
 from geventwebsocket.websocket import WebSocket
-from toolpath_generation import horizontal_lines, zigzag_lines, rect_lines, rect_lines2, rect_lines3
+from toolpath_generation import TOOLPATHS
 from typing import Union
-from svgpathtools import Path
 
 class DrawingJob:
     def __init__(self, job_id, worker: Thread, shutdown_queue, update_queue):
@@ -95,9 +94,16 @@ class DryrunDrawer:
     def get_job(self) -> Union[DrawingJob, None]:
         return self.current_job
 
-    def draw(self, path: str, offset=(0, 0), scale=1.0, size=(0, 0), rotation=0) -> str:
+    def draw(self, path: str, offset=(0, 0), scale=1.0, size=(0, 0), rotation=0, toolpath_configs=None) -> str:
+        if toolpath_configs is None:
+            toolpath_configs = {}
+
         self.parser.parse(path)
-        return self.start_drawing(offset=offset, render_scale=scale, render_size=size, rotation=rotation)
+        return self.start_drawing(offset=offset,
+                                  render_scale=scale,
+                                  render_size=size,
+                                  rotation=rotation,
+                                  toolpath_configs=toolpath_configs)
 
     def start_drawing(self,
                       scale_to_fit=False,
@@ -105,7 +111,11 @@ class DryrunDrawer:
                       render_scale=1.0,
                       render_size=(0, 0),
                       rotation=0,
-                      points_per_mm=.2) -> str:
+                      points_per_mm=.2,
+                      toolpath_configs=None) -> str:
+
+        if toolpath_configs is None:
+            toolpath_configs = {}
 
         if self.current_job:
             self.current_job.stop()
@@ -121,7 +131,8 @@ class DryrunDrawer:
                                 "rotation": rotation,
                                 "points_per_mm": points_per_mm,
                                 "shutdown_queue": shutdown_queue,
-                                "update_queue": update_queue})
+                                "update_queue": update_queue,
+                                "toolpath_configs": toolpath_configs})
         job_id = uuid.uuid4()
         self.current_job = DrawingJob(job_id, worker, shutdown_queue, update_queue)
         self.current_job.start()
@@ -135,7 +146,12 @@ class DryrunDrawer:
                        rotation=0,
                        points_per_mm=2,
                        shutdown_queue=Queue(),
-                       update_queue=Queue()):
+                       update_queue=Queue(),
+                       toolpath_configs=None):
+
+        if toolpath_configs is None:
+            toolpath_configs = {}
+
         render_translate = offset
         if render_size != (0, 0):
             render_scale_width = render_size[0] / self.parser.canvas_size[0].amount
@@ -143,9 +159,16 @@ class DryrunDrawer:
             render_scale *= max(render_scale_width, render_scale_height)
 
         all_paths = self.parser.paths
-        all_paths = list(rect_lines3(all_paths,
-                                     (self.parser.canvas_size[0].amount, self.parser.canvas_size[1].amount),
-                                     n_lines=80))
+
+        toolpath = TOOLPATHS[toolpath_configs["algorithm"]] \
+            if "algorithm" in toolpath_configs.keys() and toolpath_configs["algorithm"] in TOOLPATHS.keys() \
+            else None
+
+        if toolpath is not None:
+            all_paths = toolpath(all_paths,
+                                 (self.parser.canvas_size[0].amount, self.parser.canvas_size[1].amount),
+                                 n_lines=toolpath_configs["n_lines"])
+
         for point in self.parser.get_all_points(paths=all_paths,
                                                 render_translate=render_translate,
                                                 render_scale=render_scale,

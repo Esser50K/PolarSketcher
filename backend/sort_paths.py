@@ -207,6 +207,7 @@ def sort_paths(start_point: complex, paths: list[Path], canvas_size: tuple[int, 
 
 
 STRATEGIES = {
+    "none": None,
     "simple": find_closest_path,
     "simple_variant1": find_closest_path_with_endpoint,
     "simple_variant2": find_closest_path_with_circular_path_check,

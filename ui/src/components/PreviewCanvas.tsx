@@ -39,7 +39,6 @@ function PreviewCanvas(props: CanvasProps) {
 
     if (props.onResizeUpdate) {
       props.onResizeUpdate(width, width)
-      // props.onResizeUpdate(originalSVGDimensions.width / width, originalSVGDimensions.height / height)
     }
   };
 

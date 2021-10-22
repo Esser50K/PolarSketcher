@@ -721,3 +721,12 @@ def print_hashed(d):
     for k, v in d.items():
         out[hash(k)] = list(map(lambda x: [hash(x[0]), hash(x[1].d())], v))
     pprint(out)
+
+
+TOOLPATHS = {
+    "none": None,
+    "lines": horizontal_lines,
+    "zigzag": zigzag_lines,
+    "rectlines": rect_lines3
+}
+

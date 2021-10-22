@@ -40,7 +40,10 @@ def upload():
     except json.JSONDecodeError:
         return BadRequest("could not understand request")
 
-    job_id = drawer.draw(params["svg"], params["position"], size=params["size"], rotation=params["rotation"])
+    job_id = drawer.draw(params["svg"], params["position"],
+                         size=params["size"],
+                         rotation=params["rotation"],
+                         toolpath_configs=params["toolpath_configs"])
     return job_id
 
 
