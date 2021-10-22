@@ -1,5 +1,6 @@
 import io
 import os
+import math
 from tempfile import NamedTemporaryFile
 from svgelements import SVG, SVGText, SVGImage, Path, Shape, Length, Viewbox
 from svgpathtools import Path as ToolsPath, svg2paths
@@ -54,30 +55,6 @@ def split_path(path: Path) -> list[Path]:
     return subpaths
 
 
-def get_points(path: ToolsPath, viewbox: Viewbox, render_translate=(0, 0), render_scale=1.0, rotation=0, points_per_mm=2.0):
-    try:
-        path_len = path.length()
-    except ZeroDivisionError:
-        point = path.point(0)
-        yield ((point.real * render_scale) + render_translate[0],
-               (point.imag * render_scale) + render_translate[1])
-        return
-    except Exception as e:
-        print("ERROR", e)
-        print(path)
-        raise e
-
-    scaled_path_len = path_len * render_scale
-    total_points = int(scaled_path_len * points_per_mm)
-    if total_points == 0:
-        return
-
-    path = path.rotated(rotation, complex(viewbox.width/2, viewbox.height/2))
-    for point in (path.point(i / total_points) for i in range(0, total_points + 1)):
-        yield ((point.real * render_scale) + render_translate[0],
-               (point.imag * render_scale) + render_translate[1])
-
-
 class SVGParser:
     def __init__(self,
                  path: str = None,
@@ -95,7 +72,9 @@ class SVGParser:
 
             paths, _ = svg2paths(path)
             self.paths = split_svgpathtool_path(paths)
-            self.svg = SVG.parse(path)
+            self.svg = SVG.parse(path,
+                                 width=self.canvas_size[0].amount,
+                                 height=self.canvas_size[1].amount)
             self.svg_path = ToolsPath(*self.paths)
         self.canvas_scale = canvas_scale
         self.canvas_size = canvas_size  # (Length("600cm"), Length("600cm"))
@@ -109,7 +88,9 @@ class SVGParser:
             f.flush()
             path = f.name
 
-        self.svg = SVG.parse(path)
+        self.svg = SVG.parse(path,
+                             width=self.canvas_size[0].amount,
+                             height=self.canvas_size[1].amount)
         subpaths = self.get_paths()
         parsed_paths = []
         for i in range(len(subpaths)):
@@ -152,7 +133,7 @@ class SVGParser:
         return self.paths
 
     def get_all_points(self, paths: list[Path], render_translate=(0, 0), render_scale=1.0, rotation=0,
-                       optimize_paths=False, scale_to_fit=True, use_viewbox_canvas=False, points_per_mm=2):
+                       optimize_paths=False, scale_to_fit=False, use_viewbox_canvas=False, points_per_mm=2):
         # bbox_width = self.svg.bbox()[2] - self.svg.bbox()[0]
         # bbox_height = self.svg.bbox()[3] - self.svg.bbox()[1]
         width = int(self.canvas_size[0].amount * self.canvas_scale)
@@ -182,5 +163,29 @@ class SVGParser:
             paths = sort_paths(complex(0, self.svg.viewbox.height), paths, (width, height))
 
         for path in paths:
-            for point in get_points(path, self.svg.viewbox, render_translate, render_scale, rotation, points_per_mm):
+            for point in self.get_points(path, render_translate, render_scale, rotation, points_per_mm):
                 yield point
+
+    def get_points(self, path: ToolsPath, render_translate=(0, 0), render_scale=1.0, rotation=0, points_per_mm=2.0):
+        try:
+            path_len = path.length()
+        except ZeroDivisionError:
+            point = path.point(0)
+            yield ((point.real * render_scale) + render_translate[0],
+                   (point.imag * render_scale) + render_translate[1])
+            return
+        except Exception as e:
+            print("ERROR", e)
+            raise e
+
+        scaled_path_len = path_len * render_scale
+        total_points = int(scaled_path_len * points_per_mm)
+        if total_points == 0:
+            return
+
+        origin = complex(self.canvas_size[0].amount/2, self.canvas_size[1].amount/2)
+        path = path.rotated(rotation, origin)
+        for point in (path.point(i / total_points) for i in range(0, total_points + 1)):
+            scaled_point = point * render_scale
+            yield (scaled_point.real + render_translate[0],
+                   scaled_point.imag + render_translate[1])

@@ -33,12 +33,13 @@ function PreviewCanvas(props: CanvasProps) {
 
     if (currentSVGContent) {
       currentSVGContent.setAttribute("width", String(width) + "px");
-      currentSVGContent.setAttribute("height", String(height) + "px");
+      currentSVGContent.setAttribute("height", String(width) + "px");
       setCurrentSVGContent(currentSVGContent);
     }
 
     if (props.onResizeUpdate) {
-      props.onResizeUpdate(width, height)
+      props.onResizeUpdate(width, width)
+      // props.onResizeUpdate(originalSVGDimensions.width / width, originalSVGDimensions.height / height)
     }
   };
 
@@ -108,16 +109,6 @@ function PreviewCanvas(props: CanvasProps) {
   }, [props.maxout])
 
   useEffect(() => {
-    if (!props.rotation) {
-      return
-    }
-
-    const x = (canvasDimensions.width / 2) - (contentDimensions.width / 2);
-    const y = (canvasDimensions.height / 2) - (contentDimensions.height / 2);
-    setNewPos(x, y);
-  }, [props.rotation])
-
-  useEffect(() => {
     if (contentDimensions.height !== 0) {
       return
     }
@@ -141,10 +132,10 @@ function PreviewCanvas(props: CanvasProps) {
       const dimensions = (viewBoxAny ? viewBoxAny.baseVal : svgContent.bbox) as SVGRect
       const contentDimensionsWidth = Math.min(dimensions.width || 0, canvasDimensions.width);
       const contentDimensionsHeight = Math.min(dimensions.height || 0, canvasDimensions.height);
-      (svgContent as HTMLElement).setAttribute("width", String(contentDimensionsHeight) + "px");
+      (svgContent as HTMLElement).setAttribute("width", String(contentDimensionsWidth) + "px");
       (svgContent as HTMLElement).setAttribute("height", String(contentDimensionsWidth) + "px");
       setCurrentSVGContent(svgContent as HTMLElement);
-      resize(contentDimensionsWidth, contentDimensionsHeight);
+      resize(contentDimensionsWidth, contentDimensionsWidth);
     }
   }, [props.svgContent])
 

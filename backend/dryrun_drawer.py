@@ -6,6 +6,7 @@ from threading import Thread, Event
 from geventwebsocket.websocket import WebSocket
 from toolpath_generation import horizontal_lines, zigzag_lines, rect_lines, rect_lines2, rect_lines3
 from typing import Union
+from svgpathtools import Path
 
 class DrawingJob:
     def __init__(self, job_id, worker: Thread, shutdown_queue, update_queue):
@@ -135,28 +136,16 @@ class DryrunDrawer:
                        points_per_mm=2,
                        shutdown_queue=Queue(),
                        update_queue=Queue()):
-        svg = self.parser.svg
-        original_bbox_width = bbox_width = svg.bbox()[2] - svg.bbox()[0]
-        original_bbox_height = bbox_height = svg.bbox()[3] - svg.bbox()[1]
-        if bbox_width > svg.viewbox.width or bbox_height > svg.viewbox.height:
-            # This fixes the bbox size in case it happens
-            # to be bigger than the viewbox for some reason
-            width_scale = svg.viewbox.width / bbox_width
-            height_scale = svg.viewbox.height / bbox_height
-            fix_render_scale = min(width_scale, height_scale)  # meant to preserve aspect ratio
-            render_scale *= fix_render_scale
-
         render_translate = offset
         if render_size != (0, 0):
-            render_scale_width = render_size[0] / svg.viewbox.width
-            render_scale_height = render_size[1] / svg.viewbox.height
+            render_scale_width = render_size[0] / self.parser.canvas_size[0].amount
+            render_scale_height = render_size[1] / self.parser.canvas_size[1].amount
             render_scale *= max(render_scale_width, render_scale_height)
 
         all_paths = self.parser.paths
         all_paths = list(rect_lines3(all_paths,
-                                     (max(original_bbox_width, int(svg.viewbox.width)),
-                                      max(original_bbox_height, int(svg.viewbox.height))),
-                                     n_lines=50))
+                                     (self.parser.canvas_size[0].amount, self.parser.canvas_size[1].amount),
+                                     n_lines=80))
         for point in self.parser.get_all_points(paths=all_paths,
                                                 render_translate=render_translate,
                                                 render_scale=render_scale,

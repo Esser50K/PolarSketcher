@@ -691,8 +691,8 @@ def rect_lines3(paths: list[Path], canvas_dimensions: tuple, n_lines=100):
         for path_str in group:
             paths_collided[path_str] = True
 
-    for path, _ in ongoing_paths:
-        yield path
+    for ongoing_path in ongoing_paths:
+        yield ongoing_path[0]
 
 
 def frange(start, stop=None, step=None):
