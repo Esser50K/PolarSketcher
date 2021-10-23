@@ -132,20 +132,8 @@ class SVGParser:
 
         return self.paths
 
-    def get_all_points(self, paths: list[Path], render_translate=(0, 0), render_scale=1.0, rotation=0,
-                       optimize_paths=False, scale_to_fit=False, use_viewbox_canvas=False, points_per_mm=2):
-        # bbox_width = self.svg.bbox()[2] - self.svg.bbox()[0]
-        # bbox_height = self.svg.bbox()[3] - self.svg.bbox()[1]
-        width = int(self.canvas_size[0].amount * self.canvas_scale)
-        height = int(self.canvas_size[1].amount * self.canvas_scale)
-
-        if scale_to_fit:
-            width_scale = width / self.svg.viewbox.width
-            height_scale = height / self.svg.viewbox.height
-            render_scale = min(width_scale, height_scale)  # meant to preserve aspect ratio
-        elif use_viewbox_canvas:
-            width = int(self.svg.viewbox.width)
-            height = int(self.svg.viewbox.height)
+    def get_all_points(self, paths: list[Path], render_translate=(0, 0), render_scale=1.0,
+                       rotation=0, toolpath_rotation=0, points_per_mm=2):
 
         """
         # TODO center bbox
@@ -159,14 +147,11 @@ class SVGParser:
             render_translate[1] = -scaled_offset[1] + (height - scaled_bbox_height) / 2
         """
 
-        if optimize_paths:
-            paths = sort_paths(complex(0, self.svg.viewbox.height), paths, (width, height))
-
         for path in paths:
-            for point in self.get_points(path, render_translate, render_scale, rotation, points_per_mm):
+            for point in self.get_points(path, render_translate, render_scale, rotation, toolpath_rotation, points_per_mm):
                 yield point
 
-    def get_points(self, path: ToolsPath, render_translate=(0, 0), render_scale=1.0, rotation=0, points_per_mm=2.0):
+    def get_points(self, path: ToolsPath, render_translate=(0, 0), render_scale=1.0, rotation=0, toolpath_rotation=0, points_per_mm=2.0):
         try:
             path_len = path.length()
         except ZeroDivisionError:
@@ -184,7 +169,7 @@ class SVGParser:
             return
 
         origin = complex(self.canvas_size[0].amount/2, self.canvas_size[1].amount/2)
-        path = path.rotated(rotation, origin)
+        path = path.rotated(rotation-toolpath_rotation, origin)
         for point in (path.point(i / total_points) for i in range(0, total_points + 1)):
             scaled_point = point * render_scale
             yield (scaled_point.real + render_translate[0],

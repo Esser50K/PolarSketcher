@@ -112,9 +112,10 @@ def get_horizontal_intersection_points(paths: list[Path], canvas_size: tuple[int
     return intersections
 
 
-def horizontal_lines(paths: list[Path], canvas_dimensions: tuple, n_lines=100):
+def horizontal_lines(paths: list[Path], canvas_dimensions: tuple[float, float], n_lines=100, angle=0):
     canvas_width, canvas_height = canvas_dimensions
     line_step = canvas_height / n_lines
+    paths = [path.rotated(angle, complex(canvas_width/2, canvas_height/2)) for path in paths]
 
     heights = list(map(int, (frange(0, canvas_height, line_step))))
     lines = {height: Line(complex(0, height), complex(10000, height)) for height in heights}
@@ -147,9 +148,10 @@ def horizontal_lines(paths: list[Path], canvas_dimensions: tuple, n_lines=100):
             yield path
 
 
-def zigzag_lines(paths: list[Path], canvas_dimensions: tuple, n_lines=100):
+def zigzag_lines(paths: list[Path], canvas_dimensions: tuple, n_lines=100, angle=0):
     canvas_width, canvas_height = canvas_dimensions
     line_step = canvas_height / n_lines
+    paths = [path.rotated(angle, complex(canvas_width/2, canvas_height/2)) for path in paths]
 
     heights = list(map(int, (frange(0, canvas_height, line_step))))
     lines = {height: Line(complex(0, height), complex(10000, height)) for height in heights}
@@ -216,7 +218,7 @@ def zigzag_lines(paths: list[Path], canvas_dimensions: tuple, n_lines=100):
             yield path
 
 
-def rect_lines(paths: list[Path], canvas_dimensions: tuple, n_lines=100, diagonals=False):
+def rect_lines(paths: list[Path], canvas_dimensions: tuple, n_lines=100, angle=0, diagonals=False):
     """
     this algorithm will fill in shapes with rectangular zigzag paths
     it will start a new path everytime a line changes in number of intersections
@@ -225,6 +227,7 @@ def rect_lines(paths: list[Path], canvas_dimensions: tuple, n_lines=100, diagona
     """
     canvas_width, canvas_height = canvas_dimensions
     line_step = canvas_height / n_lines
+    paths = [path.rotated(angle, complex(canvas_width/2, canvas_height/2)) for path in paths]
 
     heights = list(map(int, (frange(0, canvas_height, line_step))))
     lines = {height: Line(complex(0, height), complex(10000, height)) for height in heights}
@@ -322,7 +325,7 @@ def check_collision_paths(last_line_paths, current_line_paths, idx):
     return last_line_paths[idx] != current_line_paths[idx]
 
 
-def rect_lines2(paths: list[Path], canvas_dimensions: tuple, n_lines=100, diagonals=False):
+def rect_lines2(paths: list[Path], canvas_dimensions: tuple, n_lines=100, angle=0, diagonals=False):
     """
     this algorithm will fill in shapes with rectangular zigzag paths
     it first groups paths by parent and direct children (paths contained by other path)
@@ -331,6 +334,7 @@ def rect_lines2(paths: list[Path], canvas_dimensions: tuple, n_lines=100, diagon
     """
     canvas_width, canvas_height = canvas_dimensions
     line_step = canvas_height / n_lines
+    paths = [path.rotated(angle, complex(canvas_width/2, canvas_height/2)) for path in paths]
 
     heights = list(map(int, (frange(0, canvas_height, line_step))))
     lines = {height: Line(complex(0, height), complex(10000, height)) for height in heights}
@@ -464,7 +468,7 @@ def rect_lines2(paths: list[Path], canvas_dimensions: tuple, n_lines=100, diagon
             paths_collided[path_str] = True
 
 
-def rect_lines3(paths: list[Path], canvas_dimensions: tuple, n_lines=100):
+def rect_lines3(paths: list[Path], canvas_dimensions: tuple, n_lines=100, angle=0):
     """
     this algorithm will fill in shapes with rectangular zigzag paths
     it first groups paths by parent and direct children (paths contained by other path)
@@ -474,6 +478,7 @@ def rect_lines3(paths: list[Path], canvas_dimensions: tuple, n_lines=100):
     """
     canvas_width, canvas_height = canvas_dimensions
     line_step = canvas_height / n_lines
+    paths = [path.rotated(angle, complex(canvas_width/2, canvas_height/2)) for path in paths]
 
     heights = list(map(int, (frange(0, canvas_height, line_step))))
     lines = {height: Line(complex(0, height), complex(10000, height)) for height in heights}

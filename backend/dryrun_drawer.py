@@ -117,7 +117,6 @@ class DryrunDrawer:
                                   pathsort_config=pathsort_config)
 
     def start_drawing(self,
-                      scale_to_fit=False,
                       offset=(0, 0),
                       render_scale=1.0,
                       render_size=(0, 0),
@@ -137,8 +136,7 @@ class DryrunDrawer:
         shutdown_queue = Queue()
         update_queue = Queue()
         worker = Thread(target=self._start_drawing,
-                        kwargs={"scale_to_fit": scale_to_fit,
-                                "offset": offset,
+                        kwargs={"offset": offset,
                                 "render_scale": render_scale,
                                 "render_size": render_size,
                                 "rotation": rotation,
@@ -153,7 +151,6 @@ class DryrunDrawer:
         return str(job_id)
 
     def _start_drawing(self,
-                       scale_to_fit=False,
                        offset=(0, 0),
                        render_scale=1.0,
                        render_size=(0, 0),
@@ -182,8 +179,9 @@ class DryrunDrawer:
 
         if toolpath is not None:
             all_paths = list(toolpath(all_paths,
-                                 (self.parser.canvas_size[0].amount, self.parser.canvas_size[1].amount),
-                                 n_lines=toolpath_config["n_lines"]))
+                                      (self.parser.canvas_size[0].amount, self.parser.canvas_size[1].amount),
+                                      n_lines=toolpath_config["n_lines"],
+                                      angle=toolpath_config["angle"]))
 
         pathsort_algo = SORTING_ALGORITHMS[pathsort_config["algorithm"]] \
             if "algorithm" in pathsort_config.keys() and pathsort_config["algorithm"] in SORTING_ALGORITHMS.keys() \
@@ -198,8 +196,8 @@ class DryrunDrawer:
         for point in self.parser.get_all_points(paths=all_paths,
                                                 render_translate=render_translate,
                                                 render_scale=render_scale,
-                                                scale_to_fit=scale_to_fit,
                                                 rotation=rotation,
+                                                toolpath_rotation=toolpath_config["angle"],
                                                 points_per_mm=points_per_mm):
             update_queue.put(point)
 
