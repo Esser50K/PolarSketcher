@@ -86,10 +86,6 @@ function SimulationCanvas(props: CanvasProps) {
       return
     }
 
-    const debouncedRedraw = debounce(() => {
-      setProgressIndex(drawnPoints.length)
-    }, 10);
-
     props.ws!.onmessage = (event: MessageEvent) => {
       const update = JSON.parse(event.data);
       const newDrawnPoints = drawnPoints;
@@ -97,7 +93,7 @@ function SimulationCanvas(props: CanvasProps) {
         newDrawnPoints.push(point);
       })
       setDrawnPoints(newDrawnPoints);
-      debouncedRedraw();
+      setProgressIndex(drawnPoints.length);
     }
 
     props.ws!.onclose = () => {
@@ -110,14 +106,30 @@ function SimulationCanvas(props: CanvasProps) {
       return
     }
 
+    if (drawnPoints.length == 0) {
+      return;
+    }
+
     const currentCanvas = canvas.current! as HTMLCanvasElement;
     ctx.clearRect(0, 0, currentCanvas.width, currentCanvas.height);
     const ratio = currentCanvas.width / targetSize;
 
-    for (let i = 0; i < progressIndex && i < drawnPoints.length; i++) {
+    const startPoint = drawnPoints[0];
+    ctx.beginPath();
+    ctx.moveTo(startPoint[0] * ratio, startPoint[1] * ratio)
+
+    let prevPoint = startPoint;
+    for (let i = 1; i < progressIndex && i < drawnPoints.length; i++) {
       const point = drawnPoints[i];
-      ctx.strokeRect(point[0] * ratio, point[1] * ratio, 1, 1);
+      if (Math.abs(point[0] - prevPoint[0]) > 10 || Math.abs(point[1] - prevPoint[1]) > 10) {
+        ctx.moveTo(point[0] * ratio, point[1] * ratio);
+      } else {
+        ctx.lineTo(point[0] * ratio, point[1] * ratio);
+      }
+      prevPoint = point;
+      //ctx.strokeRect(point[0] * ratio, point[1] * ratio, 1, 1);
     }
+    ctx.stroke();
 
   }, [progressIndex])
 
