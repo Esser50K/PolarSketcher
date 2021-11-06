@@ -150,6 +150,8 @@ class SVGParser:
         for path in paths:
             for point in self.get_points(path, render_translate, render_scale, rotation, toolpath_rotation, points_per_mm):
                 yield point
+            # signal end of path
+            yield None
 
     def get_points(self, path: ToolsPath, render_translate=(0, 0), render_scale=1.0, rotation=0, toolpath_rotation=0, points_per_mm=2.0):
         try:

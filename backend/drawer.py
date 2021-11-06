@@ -1,5 +1,6 @@
 import json
 import uuid
+from polar_sketcher_connector import PolarSketcherConnector
 from queue import Queue, Empty, Full
 from svg_parser import SVGParser
 from threading import Thread, Event
@@ -7,6 +8,7 @@ from geventwebsocket.websocket import WebSocket
 from toolpath_generation import TOOLPATHS
 from sort_paths import SORTING_ALGORITHMS, sort_paths
 from typing import Union
+
 
 class DrawingJob:
     def __init__(self, job_id, worker: Thread, shutdown_queue, update_queue):
@@ -26,7 +28,7 @@ class DrawingJob:
 
     def add_websocket(self, ws: WebSocket, event: Event):
         key = ws.origin + str(uuid.uuid4())
-        self.connected_ws[ws.origin + str(uuid.uuid4())] = (ws, event)
+        self.connected_ws[key] = (ws, event)
         ws.send(json.dumps({
             "type": "update",
             "payload": self.drawn_positions
@@ -102,7 +104,8 @@ class DryrunDrawer:
              size=(0, 0),
              rotation=0,
              toolpath_config=None,
-             pathsort_config=None) -> str:
+             pathsort_config=None,
+             dryrun=True) -> str:
         if toolpath_config is None:
             toolpath_config = {}
         if pathsort_config is None:
@@ -113,6 +116,7 @@ class DryrunDrawer:
                                   render_scale=scale,
                                   render_size=size,
                                   rotation=rotation,
+                                  dryrun=dryrun,
                                   toolpath_config=toolpath_config,
                                   pathsort_config=pathsort_config)
 
@@ -123,7 +127,8 @@ class DryrunDrawer:
                       rotation=0,
                       points_per_mm=.2,
                       toolpath_config=None,
-                      pathsort_config=None) -> str:
+                      pathsort_config=None,
+                      dryrun=True) -> str:
         if toolpath_config is None:
             toolpath_config = {}
         if pathsort_config is None:
@@ -143,6 +148,7 @@ class DryrunDrawer:
                                 "points_per_mm": points_per_mm,
                                 "shutdown_queue": shutdown_queue,
                                 "update_queue": update_queue,
+                                "dryrun": dryrun,
                                 "toolpath_config": toolpath_config,
                                 "pathsort_config": pathsort_config})
         job_id = uuid.uuid4()
@@ -159,11 +165,16 @@ class DryrunDrawer:
                        shutdown_queue=Queue(),
                        update_queue=Queue(),
                        toolpath_config=None,
-                       pathsort_config=None):
+                       pathsort_config=None,
+                       dryrun=True):
         if toolpath_config is None:
             toolpath_config = {}
         if pathsort_config is None:
             pathsort_config = {}
+
+        polar_sketcher = None
+        if not dryrun:
+            polar_sketcher = PolarSketcherConnector()
 
         render_translate = offset
         if render_size != (0, 0):
@@ -199,17 +210,25 @@ class DryrunDrawer:
                                                 rotation=rotation,
                                                 toolpath_rotation=toolpath_config["angle"],
                                                 points_per_mm=points_per_mm):
-            update_queue.put(point)
+            if polar_sketcher is not None:
+                polar_sketcher.draw_point(point)
+
+            if point is not None:
+                update_queue.put(point)
 
             # if there is something in the queue we should quit
             try:
                 if wait_for_exit(shutdown_queue, update_queue):
+                    if polar_sketcher is not None:
+                        polar_sketcher.shutdown()
                     return
             except Empty:
                 pass
 
         shutdown_queue.put(True)
         update_queue.put(True)
+        if polar_sketcher is not None:
+            polar_sketcher.shutdown()
         return
 
 

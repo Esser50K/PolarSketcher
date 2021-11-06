@@ -7,6 +7,7 @@ import Dropdown from '../units/Dropdown';
 import Divider from '../units/Divider';
 import NumberInput from '../units/NumberInput';
 import RangeInput from '../units/RangeInput';
+import CheckboxInput from '../units/CheckboxInput';
 
 function MainUI() {
     const [selectedFile, setSelectedFile] = useState("");
@@ -16,6 +17,7 @@ function MainUI() {
     const [drawnPoints, setDrawnPoints] = useState<[number, number][]>([]);
     const [contentSize, setCotentSize] = useState([600, 600]);
     const [contentPosition, setContentPosition] = useState({ x: 0, y: 0 });
+    const [dryrunChecked, setDryrunChecked] = useState(true);
 
     // edit tools
     const [center, setCenter] = useState(false);
@@ -58,6 +60,7 @@ function MainUI() {
             const body = {
                 position: [contentPosition.x / ratio, contentPosition.y / ratio],
                 size: [contentSize[0] / ratio, contentSize[1] / ratio],
+                dryrun: dryrunChecked,
                 rotation: rotation,
                 toolpath_config: {
                     algorithm: toolpathAlgorithm,
@@ -137,32 +140,35 @@ function MainUI() {
     return (
         <div className="upload-container m-2">
             <div className="m-8">
-                <div className="w-full flex flex-row items-end justify-start">
-                    <Dropdown
-                        label="Runner"
-                        options={{ "dryrunner": "Dry Runner", "polarsketcher": "Polar Sketcher" }}
-                        onValueChange={(val) => { console.info(val) }}
-                    ></Dropdown>
-                    {selectedFile !== "" ?
-                        <div>
-                            <button
-                                className="button-base ml-2"
-                                onClick={handleUpload}>Upload Image
-                            </button>
-                        </div> : null}
-                    <div className="flex items-center">
-                        <input type="file"
-                            accept="image/svg+xml"
-                            name="image"
-                            id="file"
-                            style={{ "display": "none" }}
-                            onChange={handleSelectImage}>
-                        </input>
-                        <p className={`ml-2 p-1 text-sm ${selectedFile === '' ? 'border-2 rounded-sm' : ''}`}>
-                            <label htmlFor="file">
-                                {selectedFile === "" ? "Select Image" : selectedFile}
-                            </label>
-                        </p>
+                <div className="w-full flex flex-col items-start justify-start">
+                    <div>
+                        <CheckboxInput
+                            label="Use Dryrun"
+                            default={true}
+                            onValueChange={(val) => { setDryrunChecked(val) }}
+                        ></CheckboxInput>
+                    </div>
+                    <div className="flex flex-row">
+                        {selectedFile !== "" ?
+                            <div className="button-base mt-2">
+                                <button
+                                    onClick={handleUpload}>Upload Image
+                                </button>
+                            </div> : null}
+                        <div className="flex items-center">
+                            <input type="file"
+                                accept="image/svg+xml"
+                                name="image"
+                                id="file"
+                                style={{ "display": "none" }}
+                                onChange={handleSelectImage}>
+                            </input>
+                            <p className={`mt-2 p-1 text-sm ${selectedFile === '' ? 'border-2 rounded-sm' : ''}`}>
+                                <label htmlFor="file">
+                                    {selectedFile === "" ? "Select Image" : selectedFile}
+                                </label>
+                            </p>
+                        </div>
                     </div>
                 </div>
                 <Divider title="Edit Tools"></Divider>

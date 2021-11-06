@@ -8,7 +8,7 @@ from flask import Flask, request
 from flask_cors import CORS
 from svgelements import Length
 from svg_parser import SVGParser
-from dryrun_drawer import DryrunDrawer
+from drawer import DryrunDrawer
 from flask_sockets import Sockets
 from geventwebsocket.websocket import WebSocket
 from threading import Event
@@ -42,6 +42,7 @@ def upload():
 
     job_id = drawer.draw(params["svg"], params["position"],
                          size=params["size"],
+                         dryrun=params["dryrun"],
                          rotation=params["rotation"],
                          toolpath_config=params["toolpath_config"],
                          pathsort_config=params["pathsort_config"])
