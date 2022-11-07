@@ -1,4 +1,6 @@
 flask_cors
+gevent-websocket
+Flask-Sockets
 flask==1.1.4
 waitress~=2.0.0
 argparse~=1.4.0
@@ -8,5 +10,6 @@ pygame~=2.0.1
 serial~=0.0.97
 pyserial~=3.5
 svg.path~=4.1
+MarkupSafe<2.1.0
 git+https://github.com/meerk40t/svgelements
 git+https://github.com/mathandy/svgpathtools.git

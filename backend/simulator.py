@@ -1,31 +1,47 @@
-import pygame
 import argparse
-from svgelements import SVG, SVGText, SVGImage, Path, Shape, Length
+from typing import List
+
+import pygame
+from svgelements import *
+from svgpathtools import Path as ToolsPath, Line as ToolsLine
+
+import svg_parse_utils
+
+PIXELS_BETWEEN_POINTS = 5
+CANVAS_WIDTH = 600
+CANVAS_HEIGHT = 600
 
 
-def split_path(path: Path) -> list[Path]:
-    i = 0
-    subpaths = []
-    while True:
-        try:
-            subpath = Path(path.subpath(i))
-            subpaths.append(subpath)
-            i += 1
-        except IndexError:
-            break
-
-    return subpaths
+def bbox_to_pygame_rect(xmin, xmax, ymin, ymax):
+    # left, top, width, height
+    return xmin, ymax, xmax - xmin, ymin - ymax
 
 
-def get_points(path: Path, render_translate=(0, 0), render_scale=1, points_per_mm=1.0):
-    path_len = Length(path.length()).to_mm()
-    total_points = int(path_len.amount * points_per_mm)
-    if total_points == 0:
-        return
+def linearize_paths(paths: List[ToolsPath]) -> List[ToolsPath]:
+    out_paths = []
+    for path in paths:
+        subpath = ToolsPath()
 
-    for point in (path.point(i / total_points) for i in range(0, total_points + 1)):
-        yield ((point.real * render_scale) + render_translate[0],
-               (point.imag * render_scale) + render_translate[1])
+        number_of_steps = int((path.length() / PIXELS_BETWEEN_POINTS) + .5)
+        real_end = start = path.point(0)
+        for i in range(1, number_of_steps):
+            end = path.point(min(1.0, i / number_of_steps))
+            subpath.append(ToolsLine(start, end))
+            start = end
+
+        subpath.append(ToolsLine(start, real_end))
+        out_paths.append(subpath)
+
+    return out_paths
+
+
+def split_svgpaths(paths: List[ToolsPath]) -> List[ToolsPath]:
+    all_subpaths = []
+    for path in paths:
+        subpaths = path.continuous_subpaths()
+        all_subpaths.extend(subpaths)
+
+    return all_subpaths
 
 
 def tuple_type(strings):
@@ -34,67 +50,83 @@ def tuple_type(strings):
     return tuple(mapped_int)
 
 
-def get_paths(svg: SVG) -> list[Path]:
-    elements = []
-    for element in svg.elements():
-        try:
-            if element.values['visibility'] == 'hidden':
-                continue
-        except (KeyError, AttributeError):
-            pass
-        if isinstance(element, SVGText):
-            elements.append(element)
-        elif isinstance(element, Path):
-            if len(element) != 0:
-                print("added path")
-                elements.append(element)
-        elif isinstance(element, Shape):
-            e = Path(element)
-            e.reify()  # In some cases the shape could not have reified, the path must.
-            if len(e) != 0:
-                print("added shape")
-                elements.append(e)
-        elif isinstance(element, SVGImage):
-            try:
-                element.load()
-                if element.image is not None:
-                    elements.append(element)
-            except OSError:
-                pass
+def draw_lines(paths: List[ToolsPath],
+               surface,
+               canvas_size,
+               render_translate=(0, 0),
+               render_scale=1.0,
+               points_per_mm=.5,
+               color=pygame.Color("black"),
+               stroke=2):
+    prev = start = None
+    for point in svg_parse_utils.get_all_points(paths=paths,
+                                                canvas_size=canvas_size,
+                                                render_translate=render_translate,
+                                                render_scale=render_scale,
+                                                points_per_mm=points_per_mm):
+        # indicating new path so close up the last one
+        if point is None and prev is not None:
+            pygame.draw.line(surface, color,
+                             (prev[0], prev[1]), (start[0], start[1]),
+                             stroke)
+            prev = start = None
 
-    paths = []
-    for element in elements:
-        paths.extend(split_path(element))
+        if start is None:
+            prev = start = point
+            continue
 
-    return elements
+        current = point
+        pygame.draw.line(surface, color,
+                         (current[0], current[1]), (prev[0], prev[1]),
+                         stroke)
+        prev = current
+        yield point
 
 
-def get_all_points(svg: SVG, canvas_size, paths, canvas_scale=1, render_translate=(0, 0), render_scale=1.0, scale_to_fit=True, center=False, use_viewbox_canvas = False, points_per_mm=2):
-    bbox_width = svg.bbox()[2] - svg.bbox()[0]
-    bbox_height = svg.bbox()[3] - svg.bbox()[1]
-    width = int(canvas_size[0].amount * canvas_scale)
-    height = int(canvas_size[1].amount * canvas_scale)
+def draw_points(paths: List[ToolsPath],
+                surface,
+                canvas_size,
+                render_translate=(0, 0),
+                render_scale=1.0,
+                points_per_mm=.5,
+                color=pygame.Color("black"),
+                stroke=2):
+    for point in svg_parse_utils.get_all_points(paths=paths,
+                                                canvas_size=canvas_size,
+                                                render_translate=render_translate,
+                                                render_scale=render_scale,
+                                                points_per_mm=points_per_mm):
+        if point is None:
+            continue
 
-    if scale_to_fit:
-        width_scale = width / svg.viewbox.width
-        height_scale = height / svg.viewbox.height
-        render_scale = max(width_scale, height_scale)  # meant to preserve aspect ratio
-    elif use_viewbox_canvas:
-        width = int(svg.viewbox.width)
-        height = int(svg.viewbox.height)
+        pygame.draw.circle(surface, color, point, stroke)
+        yield point
 
-    if center:
-        scaled_bbox_width = bbox_width * render_scale
-        scaled_bbox_height = bbox_height * render_scale
-        scaled_bbox = list(map(lambda x: x * render_scale, svg.bbox()))
-        scaled_offset = scaled_bbox[:2]
-        render_translate = list(render_translate)  # convert to list
-        render_translate[0] = -scaled_offset[0] + (width - scaled_bbox_width) / 2
-        render_translate[1] = -scaled_offset[1] + (height - scaled_bbox_height) / 2
 
+def draw_paths(paths: List[ToolsPath], surface, lines=False, color=pygame.Color("blue"), fps=60):
+    if lines:
+        draw_lines(paths, surface, color, fps)
+    else:
+        draw_points(paths, surface, color, fps)
+
+
+def _draw_bboxes(paths: List[ToolsPath], surface, color):
     for path in paths:
-        for point in get_points(path, render_translate, render_scale, points_per_mm):
-            yield point
+        pygame.draw.rect(surface,
+                         color,
+                         bbox_to_pygame_rect(*path.bbox()),
+                         2)
+
+
+def draw_bboxes(paths: List[ToolsPath], surface, segments=False, color=pygame.Color('black')):
+    if segments:
+        new_paths = []
+        for path in paths:
+            for segment in path:
+                new_paths.append(ToolsPath(segment))
+        paths = new_paths
+
+    _draw_bboxes(paths, surface, color)
 
 
 def main():
@@ -105,17 +137,26 @@ def main():
     parser.add_argument("--render-scale", type=float, default=1.0, help="scale factor for svg")
     parser.add_argument("--render-size", type=tuple_type, default=(0, 0), help="alternate size for rendering the svg")
     parser.add_argument("--offset", type=tuple_type, default=(0, 0), help="offset from top left corner to render svg")
-    parser.add_argument("--points-per-mm", type=float, default=.5, help="how many points to draw per mm")
-    parser.add_argument("--scale-to-fit", type=bool, default=True, help="automatically scale the image to fit the canvas")
+    parser.add_argument("--points-per-mm", type=float, default=.1, help="how many points to draw per mm")
+    parser.add_argument("--scale-to-fit", type=bool, default=True,
+                        help="automatically scale the image to fit the canvas")
     parser.add_argument("--center", type=bool, default=False, help="if the image should be centered in the canvas")
-    parser.add_argument("--fps", type=int, default=60, help="the rate at which to simulate the drawing")
+    parser.add_argument("--fps", type=int, default=0, help="the rate at which to simulate the drawing")
+    parser.add_argument("--animate", type=bool, default=False,
+                        help="if it should animate or just draw everything at once")
     parser.add_argument("--use-viewbox-canvas", type=bool, default=False,
                         help="use the size of the viewbox of the SVG instead of the given canvas_size")
+    parser.add_argument("--draw-bbox", type=str, default=None,
+                        help="draw bounding boxes around paths with color")
+    parser.add_argument("--draw-bbox-segments", type=str, default=None,
+                        help="draw bounding boxes around path segments with color")
+    parser.add_argument("--draw-lines", type=bool, default=True,
+                        help="draw bounding boxes around path segments")
 
     args = parser.parse_args()
 
     # parse SVG
-    svg = SVG.parse(args.path)
+    svg, all_paths = svg_parse_utils.parse(args.path, args.canvas_size)
 
     canvas_size = (Length("%dmm" % args.canvas_size[0]), Length("%dmm" % args.canvas_size[1]))
     bbox_width = svg.bbox()[2] - svg.bbox()[0]
@@ -136,8 +177,8 @@ def main():
     render_translate = args.offset
     render_scale = args.render_scale
     if args.scale_to_fit:
-        width_scale = width / svg.viewbox.width
-        height_scale = height / svg.viewbox.height
+        width_scale = width / bbox_width
+        height_scale = height / bbox_height
         render_scale = max(width_scale, height_scale)  # meant to preserve aspect ratio
     elif args.use_viewbox_canvas:
         width = int(svg.viewbox.width)
@@ -146,35 +187,43 @@ def main():
     if args.render_size != (0, 0):
         render_scale = args.render_size[0] / bbox_width
 
-    scaled_bbox_width = bbox_width * args.render_scale
-    scaled_bbox_height = bbox_height * args.render_scale
-
     # init canvas
     pygame.init()
     surface = pygame.display.set_mode((width, height))
     surface.fill(pygame.Color('white'))  # set background to white
     clock = pygame.time.Clock()
 
-    all_paths = get_paths(svg)
     points = []
-    for point in get_all_points(svg,
-                                (Length(width), Length(height)),
-                                paths=all_paths,
-                                render_translate=render_translate,
-                                render_scale=render_scale,
-                                scale_to_fit=args.scale_to_fit,
-                                points_per_mm=args.points_per_mm,
-                                center=args.center):
+    drawing_func = draw_points
+    if args.draw_lines:
+        drawing_func = draw_lines
+
+    if args.draw_bbox:
+        draw_bboxes(all_paths, surface, segments=False, color=pygame.Color(args.draw_bbox))
+
+    if args.draw_bbox_segments is not None:
+        draw_bboxes(all_paths, surface, segments=True, color=pygame.Color(args.draw_bbox_segments))
+
+    for point in drawing_func(paths=all_paths,
+                              surface=surface,
+                              canvas_size=(width, height),
+                              render_translate=render_translate,
+                              render_scale=render_scale,
+                              points_per_mm=args.points_per_mm):
+        if point is None:
+            continue
+
         points.append(point)
-        pygame.draw.circle(surface,
-                           pygame.Color('black'), point, 2 * max(.5, args.render_scale))
-        pygame.display.update()
+        if args.animate:
+            pygame.display.update()
+            clock.tick(args.fps)
         pygame.event.pump()
-        clock.tick(args.fps)
 
         # if there is something in the queue we should quit
         if process_events():
             return
+
+    pygame.display.update()
 
     while True:
         if process_events():

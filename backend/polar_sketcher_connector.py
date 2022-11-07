@@ -1,12 +1,13 @@
-import serial
 import time
+
+import serial
 
 UP = True
 DOWN = False
 
 
 class PolarSketcherConnector:
-    def __init__(self, port='/dev/cu.usbserial-A50285BI', baud_rate=115200):
+    def __init__(self, port='/dev/cu.usbmodem141301', baud_rate=115200):
         self.port = port
         self.arduino = serial.Serial(port, baud_rate)
         self.pen_state = UP
@@ -48,7 +49,3 @@ class PolarSketcherConnector:
         self.auto_home()
         self.arduino.flush()
         self.arduino.close()
-
-
-
-

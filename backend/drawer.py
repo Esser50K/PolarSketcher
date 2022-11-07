@@ -1,13 +1,20 @@
 import json
 import uuid
-from polar_sketcher_connector import PolarSketcherConnector
 from queue import Queue, Empty, Full
-from svg_parser import SVGParser
 from threading import Thread, Event
+from typing import Union, List, Tuple
+
 from geventwebsocket.websocket import WebSocket
-from toolpath_generation import TOOLPATHS
+from svgelements import SVG
+from svgpathtools import Path
+
+import svg_parse_utils
+from polar_sketcher_connector import PolarSketcherConnector
 from sort_paths import SORTING_ALGORITHMS, sort_paths
-from typing import Union
+from toolpath_generation import TOOLPATHS
+
+DRAWING_END_COMMAND = "DRAWING_END"
+PATH_END_COMMAND = "PATH_END"
 
 
 class DrawingJob:
@@ -18,7 +25,8 @@ class DrawingJob:
         self.update_queue = update_queue
         self._update_getter = None
 
-        self.drawn_positions = []
+        self.drawn_paths = []
+        self.current_path = []
         self.connected_ws: dict[str, (WebSocket, Event)] = {}
 
     def start(self):
@@ -31,7 +39,7 @@ class DrawingJob:
         self.connected_ws[key] = (ws, event)
         ws.send(json.dumps({
             "type": "update",
-            "payload": self.drawn_positions
+            "payload": self.drawn_paths
         }))
 
     def _close_all_websockets(self):
@@ -45,36 +53,43 @@ class DrawingJob:
                 event.set()
         self.connected_ws = {}
 
+    def _broadcast(self, msg: str):
+        to_delete = []
+        for origin, ws_event in self.connected_ws.items():
+            ws, event = ws_event
+            try:
+                ws.send(msg)
+            except Exception as e:
+                print("failed sending point to %s:" % origin, type(e), e)
+                event.set()
+                to_delete.append(origin)
+
+        for ws in to_delete:
+            del self.connected_ws[ws]
+
     def _read_updates(self):
         while True:
             update = self.update_queue.get()
-            if type(update) is bool:
-                try:
-                    # don't know why it won't join
-                    #self.worker.join()
-                    self.worker = None
-                    self._close_all_websockets()
-                    return
-                except Empty:
-                    pass
+            if type(update) is str:
+                if update == DRAWING_END_COMMAND:
+                    try:
+                        # don't know why it won't join
+                        # self.worker.join()
+                        self.worker = None
+                        self._close_all_websockets()
+                        return
+                    except Empty:
+                        pass
+                elif update == PATH_END_COMMAND:
+                    self.drawn_paths.append(self.current_path)
+                    self.current_path = []
+                    self._broadcast(json.dumps({
+                        "type": "update",
+                        "payload": self.drawn_paths
+                    }))
 
             if type(update) is tuple:
-                self.drawn_positions.append(update)
-                to_delete = []
-                for origin, ws_event in self.connected_ws.items():
-                    ws, event = ws_event
-                    try:
-                        ws.send(json.dumps({
-                            "type": "update",
-                            "payload": [update]
-                        }))
-                    except Exception as e:
-                        print("failed sending point to %s:" % origin, type(e), e)
-                        event.set()
-                        to_delete.append(origin)
-
-                for ws in to_delete:
-                    del self.connected_ws[ws]
+                self.current_path.append(update)
 
     def stop(self):
         try:
@@ -84,11 +99,9 @@ class DrawingJob:
 
 
 class DryrunDrawer:
-    def __init__(self, parser: SVGParser):
-        self.parser = parser
-        self.drawing_process = None
-        self.queue = None
-        self.current_job = None
+    def __init__(self, canvas_size: Tuple[float, float]):
+        self.current_job: DrawingJob = None
+        self.canvas_size = canvas_size
 
     def stop(self):
         if self.current_job:
@@ -98,42 +111,17 @@ class DryrunDrawer:
         return self.current_job
 
     def draw(self,
-             path: str,
+             svg_str: str,  # can be svg content or file path
              offset=(0, 0),
-             scale=1.0,
-             size=(0, 0),
+             render_scale=1.0,
+             render_size=(0, 0),
              rotation=0,
+             points_per_mm=.5,
              toolpath_config=None,
              pathsort_config=None,
              dryrun=True) -> str:
-        if toolpath_config is None:
-            toolpath_config = {}
-        if pathsort_config is None:
-            pathsort_config = {}
 
-        self.parser.parse(path)
-        return self.start_drawing(offset=offset,
-                                  render_scale=scale,
-                                  render_size=size,
-                                  rotation=rotation,
-                                  dryrun=dryrun,
-                                  toolpath_config=toolpath_config,
-                                  pathsort_config=pathsort_config)
-
-    def start_drawing(self,
-                      offset=(0, 0),
-                      render_scale=1.0,
-                      render_size=(0, 0),
-                      rotation=0,
-                      points_per_mm=.2,
-                      toolpath_config=None,
-                      pathsort_config=None,
-                      dryrun=True) -> str:
-        if toolpath_config is None:
-            toolpath_config = {}
-        if pathsort_config is None:
-            pathsort_config = {}
-
+        svg, all_paths = svg_parse_utils.parse(svg_str, self.canvas_size)
         if self.current_job:
             self.current_job.stop()
             self.current_job = None
@@ -141,7 +129,9 @@ class DryrunDrawer:
         shutdown_queue = Queue()
         update_queue = Queue()
         worker = Thread(target=self._start_drawing,
-                        kwargs={"offset": offset,
+                        kwargs={"svg": svg,
+                                "paths": all_paths,
+                                "offset": offset,
                                 "render_scale": render_scale,
                                 "render_size": render_size,
                                 "rotation": rotation,
@@ -157,6 +147,8 @@ class DryrunDrawer:
         return str(job_id)
 
     def _start_drawing(self,
+                       svg: SVG,
+                       paths: List[Path],
                        offset=(0, 0),
                        render_scale=1.0,
                        render_size=(0, 0),
@@ -178,64 +170,59 @@ class DryrunDrawer:
 
         render_translate = offset
         if render_size != (0, 0):
-            render_scale_width = render_size[0] / self.parser.canvas_size[0].amount
-            render_scale_height = render_size[1] / self.parser.canvas_size[1].amount
+            render_scale_width = render_size[0] / self.canvas_size[0]
+            render_scale_height = render_size[1] / self.canvas_size[1]
             render_scale *= max(render_scale_width, render_scale_height)
-
-        all_paths = self.parser.paths
 
         toolpath = TOOLPATHS[toolpath_config["algorithm"]] \
             if "algorithm" in toolpath_config.keys() and toolpath_config["algorithm"] in TOOLPATHS.keys() \
             else None
 
         if toolpath is not None:
-            all_paths = list(toolpath(all_paths,
-                                      (self.parser.canvas_size[0].amount, self.parser.canvas_size[1].amount),
-                                      n_lines=toolpath_config["n_lines"],
-                                      angle=toolpath_config["angle"]))
+            paths = list(toolpath(paths,
+                                  self.canvas_size,
+                                  n_lines=toolpath_config["n_lines"],
+                                  angle=toolpath_config["angle"]))
 
         pathsort_algo = SORTING_ALGORITHMS[pathsort_config["algorithm"]] \
             if "algorithm" in pathsort_config.keys() and pathsort_config["algorithm"] in SORTING_ALGORITHMS.keys() \
             else None
 
         if pathsort_algo is not None:
-            all_paths = sort_paths(paths=all_paths,
-                                   start_point=complex(pathsort_config["x"], pathsort_config["y"]),
-                                   canvas_size=(self.parser.canvas_size[0].amount, self.parser.canvas_size[1].amount),
-                                   sorting_algo=pathsort_algo)
+            paths = sort_paths(paths=paths,
+                               start_point=complex(pathsort_config["x"], pathsort_config["y"]),
+                               canvas_size=self.canvas_size,
+                               sorting_algo=pathsort_algo)
 
-        for point in self.parser.get_all_points(paths=all_paths,
-                                                render_translate=render_translate,
-                                                render_scale=render_scale,
-                                                rotation=rotation,
-                                                toolpath_rotation=toolpath_config["angle"],
-                                                points_per_mm=points_per_mm):
+        for point in svg_parse_utils.get_all_points(paths=paths,
+                                                    canvas_size=self.canvas_size,
+                                                    render_translate=render_translate,
+                                                    render_scale=render_scale,
+                                                    rotation=rotation,
+                                                    toolpath_rotation=toolpath_config["angle"],
+                                                    points_per_mm=points_per_mm):
             if polar_sketcher is not None:
                 polar_sketcher.draw_point(point)
 
-            if point is not None:
+            if point is None:
+                update_queue.put(PATH_END_COMMAND)
+            else:
                 update_queue.put(point)
 
             # if there is something in the queue we should quit
-            try:
-                if wait_for_exit(shutdown_queue, update_queue):
-                    if polar_sketcher is not None:
-                        polar_sketcher.shutdown()
-                    return
-            except Empty:
-                pass
+            if wait_for_exit(shutdown_queue, update_queue):
+                if polar_sketcher is not None:
+                    polar_sketcher.shutdown()
+                return
 
-        shutdown_queue.put(True)
-        update_queue.put(True)
+        update_queue.put(DRAWING_END_COMMAND)
         if polar_sketcher is not None:
             polar_sketcher.shutdown()
-        return
 
 
 def wait_for_exit(shutdown_queue: Queue, update_queue: Queue):
     try:
-        shutdown_queue.get_nowait()
-        shutdown_queue.put(True)
+        shutdown_queue.get_nowait()  # should trigger the exception on this line
         update_queue.put(True)
         return True
     except Empty:
