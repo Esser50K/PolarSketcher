@@ -11,7 +11,7 @@ from svgpathtools import Path
 import svg_parse_utils
 from polar_sketcher_connector import PolarSketcherConnector
 from sort_paths import SORTING_ALGORITHMS, sort_paths
-from toolpath_generation import TOOLPATHS
+from toolpath_generation.algorithm_getter import get_toolpath_algo
 
 DRAWING_END_COMMAND = "DRAWING_END"
 PATH_END_COMMAND = "PATH_END"
@@ -174,15 +174,14 @@ class DryrunDrawer:
             render_scale_height = render_size[1] / self.canvas_size[1]
             render_scale *= max(render_scale_width, render_scale_height)
 
-        toolpath = TOOLPATHS[toolpath_config["algorithm"]] \
-            if "algorithm" in toolpath_config.keys() and toolpath_config["algorithm"] in TOOLPATHS.keys() \
-            else None
+        toolpath_algorithm_func = get_toolpath_algo(toolpath_config["algorithm"]) \
+            if "algorithm" in toolpath_config.keys() else None
 
-        if toolpath is not None:
-            paths = list(toolpath(paths,
-                                  self.canvas_size,
-                                  n_lines=toolpath_config["n_lines"],
-                                  angle=toolpath_config["angle"]))
+        if toolpath_algorithm_func is not None:
+            paths = list(toolpath_algorithm_func(paths,
+                                                 self.canvas_size,
+                                                 n_lines=toolpath_config["n_lines"],
+                                                 angle=toolpath_config["angle"]))
 
         pathsort_algo = SORTING_ALGORITHMS[pathsort_config["algorithm"]] \
             if "algorithm" in pathsort_config.keys() and pathsort_config["algorithm"] in SORTING_ALGORITHMS.keys() \

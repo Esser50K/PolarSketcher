@@ -151,7 +151,7 @@ def main():
     parser.add_argument("--draw-bbox-segments", type=str, default=None,
                         help="draw bounding boxes around path segments with color")
     parser.add_argument("--draw-lines", type=bool, default=True,
-                        help="draw bounding boxes around path segments")
+                        help="draws using lines instead of dots")
 
     args = parser.parse_args()
 

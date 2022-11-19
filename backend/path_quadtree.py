@@ -1,4 +1,25 @@
+from typing import Set, List
+
 from svgpathtools import Path
+
+
+class PathSegment(Path):
+    def __init__(self, segment, original_path, **kw):
+        super().__init__(segment, **kw)
+        self.original_segment = segment
+        self.original_path: Path = original_path
+
+
+class SegmentIntersection:
+    def __init__(self,
+                 intersection_point: complex,
+                 segment: PathSegment,
+                 point_in_path: float,
+                 point_in_original_path: float):
+        self.intersection_point = intersection_point
+        self.segment = segment
+        self.point_in_path = point_in_path
+        self.point_in_original_path = point_in_original_path
 
 
 class Point:
@@ -101,7 +122,7 @@ class QuadTree:
 
     def insert_path(self, path: Path):
         for segment in path:
-            self.insert_segment(Path(segment))
+            self.insert_segment(PathSegment(segment, original_path=path))
 
     def get_segments_in_area(self, area: Rect, out=None):
         if out is None:
@@ -119,16 +140,33 @@ class QuadTree:
 
         return out
 
-    def get_path_collisions(self, collision_path: Path, found_paths=None):
-        if found_paths is None:
-            found_paths = set()
+    def get_intersections(self,
+                          collision_path: Path,
+                          found_segments: Set[PathSegment] = None) -> List[SegmentIntersection]:
+        if found_segments is None:
+            found_segments = set()
 
         for segment in collision_path:
             segment = Path(segment)
             segments_in_area = self.get_segments_in_area(bbox_to_rect(*segment.bbox()))
-            found_paths = found_paths.union(segments_in_area)
+            found_segments = found_segments.union(segments_in_area)
 
-        return None, found_paths
+        found_intersections = []
+        for segment in found_segments:
+            try:
+                path_intersections = segment.intersect(collision_path, tol=1e-12)
+                for (T1, _seg1, _t1), (_T2, _seg2, _t2) in path_intersections:
+                    point = segment.point(T1)
+                    point_in_path = T1
+                    point_in_original_path = segment.original_path.t2T(segment.original_segment, T1)
+                    found_intersections.append(
+                        SegmentIntersection(point, segment, point_in_path, point_in_original_path))
+            except Exception as e:
+                print("An error occurred trying to get an intersection:", e)
+                print("Segment D:", segment.d())
+                print("Collision Path D:", collision_path.d())
+
+        return found_intersections
 
 
 def bbox_to_rect(xmin: float, xmax: float, ymin: float, ymax: float, expansion=5) -> Rect:
