@@ -64,7 +64,6 @@ class PathGenerator:
         self.canvas_size = (0, 0)
         self.render_scale = 1.0
         self.render_size = (0, 0)
-        self.render_translate = (0, 0)
         self.rotation = 0
         self.points_per_mm = 1
 
@@ -94,9 +93,6 @@ class PathGenerator:
     # set the virtual canvas size in mm
     def set_render_size(self, render_size: Tuple):
         self.render_size = render_size
-
-    def set_render_translate(self, set_render_translate: Tuple):
-        self.set_render_translate = set_render_translate
 
     def set_rotation(self, rotation: float):
         self.rotation = rotation
@@ -143,7 +139,7 @@ class PathGenerator:
 
         for point in self.__get_all_points(paths=paths,
                                            canvas_size=self.canvas_size,
-                                           render_translate=self.render_translate,
+                                           render_translate=self.offset,
                                            render_scale=render_scale,
                                            rotation=self.rotation,
                                            toolpath_rotation=self.toolpath_angle):
@@ -212,6 +208,7 @@ class PathGenerator:
 
         for i in range(0, total_points + 1):
             point = path.point(i / total_points)
+            point = complex(point.real, point.imag)
             scaled_point = point * render_scale
             yield (scaled_point.real + render_translate[0],
                 scaled_point.imag + render_translate[1])
