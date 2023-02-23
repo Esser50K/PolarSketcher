@@ -27,12 +27,12 @@ function MainUI() {
     const [rotation, setRotation] = useState(0);
 
     // toolpath algorithm config
-    const [toolpathAlgorithm, setToolpathAlgorithm] = useState("");
+    const [toolpathAlgorithm, setToolpathAlgorithm] = useState("none");
     const [nToolpathLines, setNToolpathLines] = useState(100);
     const [toolpathAngle, setToolpathAngle] = useState(0);
 
     // toolpath algorithm config
-    const [pathSortingAlgorithm, setPathSortingAlgorithm] = useState("");
+    const [pathSortingAlgorithm, setPathSortingAlgorithm] = useState("none");
     const [searchStartX, setSearchStartX] = useState(0);
     const [searchStartY, setSearchStartY] = useState(0);
 
@@ -253,9 +253,9 @@ function MainUI() {
                             label="path sorting algorithm"
                             options={{
                                 "none": "None",
-                                "simple": "Simple",
-                                "simple_variant1": "Simple Variant1",
-                                "simple_variant2": "Simple Variant2",
+                                "closest_path": "Simple",
+                                "closest_path_with_reverse": "Simple Variant1",
+                                "closest_path_with_start_anywhere": "Simple Variant2",
                                 "radar_scan": "Radar Scan",
                             }}
                             onValueChange={(val) => { setPathSortingAlgorithm(val) }}

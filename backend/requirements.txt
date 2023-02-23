@@ -7,7 +7,6 @@ argparse~=1.4.0
 Werkzeug~=1.0.1
 gevent~=21.8.0
 pygame~=2.0.1
-serial~=0.0.97
 pyserial~=3.5
 svg.path~=4.1
 MarkupSafe<2.1.0
