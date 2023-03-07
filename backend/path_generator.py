@@ -55,6 +55,7 @@ def _get_path_sorting_algo_func(path_sorting_algorithm: PathsortAlgorithm):
     return path_sort_algorithms[path_sorting_algorithm]
 
 
+CLOSE_PATH_COMMAND = "CLOSE_PATH"
 PATH_END_COMMAND = "PATH_END"
 DRAWING_END_COMMAND = "DRAWING_END"
 class PathGenerator:
@@ -175,9 +176,10 @@ class PathGenerator:
                 yield point
 
             # signal end of path
+            if path.isclosed():
+                yield CLOSE_PATH_COMMAND
+            
             yield PATH_END_COMMAND
-        yield PATH_END_COMMAND
-
 
     def __get_points(self,
                      path: Path,

@@ -84,7 +84,7 @@ void maxAngleInterrupt() {
 
 bool home() {
   penServo.write(0);
-  
+
   if(zeroAmplitudePressed) {
     amplitudeStepper->setPosition(minAmplitudePos);
     amplitudeStepper->setTargetPosition(minAmplitudePos);
@@ -293,6 +293,11 @@ bool parseCommand(int cmd){
 
     // check if we can read the next position
     // without overwriting a position the sketcher hasn't reached yet
+    // TODO this triggers a bug because no new commands can be read until the stepper
+    // moves to the desired position, the next commands will then overflow
+    // the serial input buffer and make commands be misinterpreted
+    // for now this is fixed on the sender side by getting the status
+    // after writing a new position and holding on for new positions
     if(nextPositionToGo == nextPositionToPlace){
       return false;
     }
@@ -332,10 +337,7 @@ void readInput() {
 
     currentCommand = readInt();
     // let the command be read in the next loop iteration
-    return;
-  }
-
-  if(parseCommand(currentCommand)){
+  } else if(parseCommand(currentCommand)) {
     commandBufferIdx = 0;
     currentCommand = 0;
   }
@@ -343,6 +345,8 @@ void readInput() {
 
 void setup()
 {
+  Serial.setTxBufferSize(1024);
+  Serial.setRxBufferSize(1024);
   Serial.begin(BAUD_RATE);
 
   // configure output pins

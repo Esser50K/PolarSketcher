@@ -12,8 +12,8 @@ import svg_parse_utils
 from sort_paths import SORTING_ALGORITHMS, sort_paths
 from toolpath_generation.algorithm_getter import get_toolpath_algo
 
-from path_generator import PathGenerator, PATH_END_COMMAND, DRAWING_END_COMMAND
-from polar_sketcher_interface import PolarSketcherInterface, Status, Mode, Command
+from path_generator import PathGenerator, CLOSE_PATH_COMMAND, PATH_END_COMMAND
+from polar_sketcher_interface import PolarSketcherInterface, Mode
 
 
 class DrawingJobWebConnection:
@@ -48,9 +48,6 @@ class DrawingJob:
             self.polar_sketcher.set_mode(Mode.HOME)
             self.polar_sketcher.wait_for_idle()
             status = self.polar_sketcher.calibrate()
-            status = self.polar_sketcher.calibrate()
-            status = self.polar_sketcher.calibrate()
-            status = self.polar_sketcher.calibrate()
             print(status)
             self.polar_sketcher.set_mode(Mode.DRAW)
         self.worker.start()
@@ -65,18 +62,13 @@ class DrawingJob:
         }))
 
     def run(self):
-        first_point = (0, 0)
-        previous_point = (0, 0)
+        first_point = None
         for point in self.path_generator.generate_points():
             if self._stop:
                 break
 
-            if point == PATH_END_COMMAND:
-                self.drawn_paths.append(self.current_path)
-                self.current_path = []
-
+            if point == CLOSE_PATH_COMMAND:
                 if self.polar_sketcher is not None:
-                    # Sending same position twice, one with pen down and the next with pen up
                     amplitude_pos, angle_pos = self.polar_sketcher.convert_to_stepper_positions(
                                                                             self.path_generator.canvas_size,
                                                                             first_point)
@@ -87,7 +79,11 @@ class DrawingJob:
                         amplitude_velocity=5000,
                         angle_velocity=1500
                     )
-                    previous_point = (0, 0)
+
+            elif point == PATH_END_COMMAND:
+                self.drawn_paths.append(self.current_path)
+                self.current_path = []
+                first_point = None
 
                 # update all web connections
                 self._broadcast(json.dumps({
@@ -97,29 +93,41 @@ class DrawingJob:
             else:
                 self.current_path.append(point)
                 if self.polar_sketcher is not None:
+                    # so it can happen that we sent too many positions to the controller
+                    # to the point where it is stuck reading the next positions
+                    # because nextPosToPlaceIdx is about to overwrite nextPosToGoIdx
+                    # to avoid that we check if we can write a position by checking
+                    # the status first and then wait until the controller can
+                    # receive new positions
+                    status = self.polar_sketcher.update_status()
+                    while(status.nextPosToPlaceIdx == status.nextPosToGoIdx):
+                        time.sleep(.1)
+                        status = self.polar_sketcher.update_status()
+
+                    # now that it is ready, add a new position
                     amplitude_pos, angle_pos = self.polar_sketcher.convert_to_stepper_positions(
                                                                             self.path_generator.canvas_size,
                                                                             point)
+                    pen_position = 0 if first_point is None else 20
+
                     self.polar_sketcher.add_position(
                         amplitude_pos,
                         angle_pos,
-                        pen=0 if previous_point == (0, 0) else 20,
+                        pen=pen_position,
                         amplitude_velocity=5000,
                         angle_velocity=1500
                     )
-                    print(self.polar_sketcher.update_status())
 
-                if previous_point == (0, 0):
+                if first_point is None:
                     first_point = point
-                previous_point = point
 
         if self.polar_sketcher is not None:
             while True:
                 status = self.polar_sketcher.update_status()
                 if status.nextPosToGoIdx != status.nextPosToPlaceIdx-1:
                     time.sleep(.1)
-                else:
-                    break
+                    continue
+                break
             self.polar_sketcher.set_mode(Mode.HOME)
         self._close_all_webconnections()
                 
