@@ -40,17 +40,24 @@ class Status:
         self.maxEncoderCount = 0
         self.nextPosToPlaceIdx = 0
         self.nextPosToGoIdx = 0
+        self.minAmplitudeButtonPressed = 0
+        self.maxAmplitudeButtonPressed = 0
+        self.minAngleButtonPressed = 0
+        self.maxAngleButtonPressed = 0
 
     def update_status(self, serial_conn: serial.Serial):
         self.currentMode = Mode(int(serial_conn.readline()))
         self.calibrated = False if int(serial_conn.readline()) == 0 else True
         self.calibrating = False if int(serial_conn.readline()) == 0 else True
+
         self.amplitudeStepperPos = int(serial_conn.readline())
         self.amplitudeStepperTargetPos = int(serial_conn.readline())
         self.amplitudeStepperSpeed = int(serial_conn.readline())
+
         self.angleStepperPos = int(serial_conn.readline())
         self.angleStepperTargetPos = int(serial_conn.readline())
         self.angleStepperSpeed = int(serial_conn.readline())
+
         self.travelableDistanceSteps = int(serial_conn.readline())
         self.stepsPerMm = float(serial_conn.readline())
         self.minAmplitudePos = int(serial_conn.readline())
@@ -61,6 +68,11 @@ class Status:
         self.nextPosToPlaceIdx = int(serial_conn.readline())
         self.nextPosToGoIdx = int(serial_conn.readline())
 
+        self.minAmplitudeButtonPressed = int(serial_conn.readline())
+        self.maxAmplitudeButtonPressed = int(serial_conn.readline())
+        self.minAngleButtonPressed = int(serial_conn.readline())
+        self.maxAngleButtonPressed = int(serial_conn.readline())
+
     def __str__(self) -> str:
         out_str = ""
         out_str += "Current Mode: %s\n" % self.currentMode
@@ -68,10 +80,10 @@ class Status:
         out_str += "Calibrating: %s\n" % self.calibrating
         out_str += "Amplitude Pos: %s\n" % self.amplitudeStepperPos
         out_str += "Amplitude Target Pos: %s\n" % self.amplitudeStepperTargetPos
-        out_str += "Amplitude Speed: %s\n" % self.amplitudeStepperTargetPos
+        out_str += "Amplitude Speed: %s\n" % self.amplitudeStepperSpeed
         out_str += "Angle Pos: %s\n" % self.angleStepperPos
-        out_str += "Angle Target Pos: %s\n" % self.angleStepperPos
-        out_str += "Angle Speed: %s\n" % self.angleStepperPos
+        out_str += "Angle Target Pos: %s\n" % self.angleStepperTargetPos
+        out_str += "Angle Speed: %s\n" % self.angleStepperSpeed
         out_str += "Travelable Distance Steps: %s\n" % self.travelableDistanceSteps
         out_str += "Steps per mm: %s\n" % self.stepsPerMm
         out_str += "Min amplitude Pos: %s\n" % self.minAmplitudePos
@@ -81,6 +93,10 @@ class Status:
         out_str += "Max Encoder Count: %s\n" % self.maxEncoderCount
         out_str += "Next Pos To Place Idx: %s\n" % self.nextPosToPlaceIdx
         out_str += "Next Pos To Go Idx: %s\n" % self.nextPosToGoIdx
+        out_str += "Min Amplitude Pressed: %s\n" % self.minAmplitudeButtonPressed
+        out_str += "Max Amplitude Pressed: %s\n" % self.maxAmplitudeButtonPressed
+        out_str += "Min Angle Pressed: %s\n" % self.minAngleButtonPressed
+        out_str += "Max Angle Pressed: %s\n" % self.maxAngleButtonPressed
 
         return out_str
 
@@ -114,12 +130,18 @@ class PolarSketcherInterface:
         # self.serial.write(self.__encode_int(self.status.maxEncoderCount))
 
         # TODO read calibration from a file or something
-        self.serial.write(self.__encode_int(38471))
-        self.serial.write(self.__encode_float(78.51))
-        self.serial.write(self.__encode_int(2886))
-        self.serial.write(self.__encode_int(41357))
-        self.serial.write(self.__encode_int(14844))
-        self.serial.write(self.__encode_int(1220))
+        # travelable distance steps
+        self.serial.write(self.__encode_int(37660))
+        # steps per mm
+        self.serial.write(self.__encode_float(76.86))
+        # minAmplitudePos
+        self.serial.write(self.__encode_int(2812))
+        # maxAmplituePos
+        self.serial.write(self.__encode_int(40472))
+        # maxAnglePos
+        self.serial.write(self.__encode_int(14509))
+        # maxEncoderCount
+        self.serial.write(self.__encode_int(1226))
         return self.update_status()
 
     def add_position(self, amplitude, angle, pen, amplitude_velocity, angle_velocity):
@@ -135,15 +157,19 @@ class PolarSketcherInterface:
         self.status.update_status(self.serial)
         return self.status
 
-    def wait_for_idle(self):
+    def wait_for_idle(self) -> Status:
         while self.update_status().currentMode != Mode.IDLE:
             time.sleep(.1)
+
+        return self.status
 
     def convert_to_stepper_positions(self, canvas_size: Tuple[float, float], position: Tuple[float, float]) -> Tuple[int, int]:
         polar_coords = polar(complex(position[0], position[1]))
         amplitude = polar_coords[0]
         angle = polar_coords[1] * (180 / pi)
 
+        # this is considering the canvas as a rect
+        # so the the stepper cannot reach the extremities in all positions
         polar_canvas: complex = polar(complex(canvas_size[0], canvas_size[1]))
         canvas_amplitude = polar_canvas[0]
 

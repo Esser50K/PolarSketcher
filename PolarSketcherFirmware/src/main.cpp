@@ -29,12 +29,6 @@ const int offsetMm = 25 + penHolderRadiusMm;
 const int carriageLenghtMm = 84 - penHolderRadiusMm;
 const int travelableDistanceMm = railLengthMm - offsetMm - carriageLenghtMm;
 
-// limit switch states
-bool zeroAmplitudePressed = false;
-bool maxAmplitudePressed = false;
-bool zeroAnglePressed = false;
-bool maxAnglePressed = false;
-
 // max stepper positions
 // will be filled by the controller and can be
 // measured with the autoCalibrate function
@@ -64,30 +58,17 @@ enum mode {
   drawing
 };
 
-
-// limit switch interrupts
-void zeroAmplitudeInterrupt() {
-  zeroAmplitudePressed = digitalRead(zeroAmplitudePin) == 1 ? false : true;
-}
-
-void maxAmplitudeInterrupt() {
-  maxAmplitudePressed = digitalRead(maxAmplitudePin) == 1 ? false : true;
-}
-
-void zeroAngleInterrupt() {
-  zeroAnglePressed = digitalRead(zeroAnglePin) == 1 ? false : true;
-}
-
-void maxAngleInterrupt() {
-  maxAnglePressed = digitalRead(maxAnglePin) == 1 ? false : true;
-}
-
 bool home() {
   penServo.write(0);
+
+  bool zeroAmplitudePressed = digitalRead(zeroAmplitudePin) == 1 ? false : true;
+  bool zeroAnglePressed = digitalRead(zeroAnglePin) == 1 ? false : true;
 
   if(zeroAmplitudePressed) {
     amplitudeStepper->setPosition(minAmplitudePos);
     amplitudeStepper->setTargetPosition(minAmplitudePos);
+  } else {
+    amplitudeStepper->singleStepAtSpeed(false);
   }
 
   if(zeroAnglePressed) {
@@ -96,21 +77,11 @@ bool home() {
 
     // also reset encoder
     angleEncoder.setCount(0);
-  }
-  
-  if(!zeroAmplitudePressed) {
-    amplitudeStepper->singleStepAtSpeed(false);
-  }
-
-  if(!zeroAnglePressed) {
+  } else {
     angleStepper->singleStepAtSpeed(false);
   }
 
-  if(zeroAmplitudePressed && zeroAnglePressed){
-    return true;
-  }
-
-  return false;
+  return zeroAmplitudePressed && zeroAnglePressed;
 }
 
 bool calibrated = false;
@@ -133,6 +104,9 @@ bool autoCalibrate() {
   if(!calibrating){
     return false;
   }
+
+  bool maxAmplitudePressed = digitalRead(maxAmplitudePin) == 1 ? false : true;
+  bool maxAnglePressed = digitalRead(maxAnglePin) == 1 ? false : true;
 
   if(!maxAmplitudePressed)
     amplitudeStepper->singleStepAtSpeed(true);
@@ -188,6 +162,11 @@ int previousPosition = 0;
 int nextPositionToPlace = 1;
 int nextPositionToGo = 0;
 position futurePositions[futurePositionsLength];
+
+// TODO play around with the logic
+// could only correct after angle stepper moved a lot
+int positionsSinceCorrection = 0;
+const int correctAfterNPositions = 10;
 bool draw() {
   // step toward target
   if (amplitudeStepper->getPosition() != amplitudeStepper->getTargetPosition() ||
@@ -202,7 +181,15 @@ bool draw() {
     }
 
     // correct angle position
-    angleStepper->setPosition(encoderPosToAnglePos());
+    positionsSinceCorrection = (positionsSinceCorrection+1) % correctAfterNPositions;
+    if(positionsSinceCorrection == 0) {
+      int realAnglePos = encoderPosToAnglePos();
+      angleStepper->setPosition(encoderPosToAnglePos());
+      // int errorThreshold = maxAnglePos * 0.0001;
+      // if(abs(realAnglePos - angleStepper->getPosition()) > errorThreshold){
+      //   angleStepper->setPosition(encoderPosToAnglePos());
+      // }
+    }
 
     // set new target
     nextPositionToGo = potentialNextPositionToGo;
@@ -213,7 +200,14 @@ bool draw() {
     angleStepper->setSpeed(nextPosition.angleVelocity);
 
     // put pen in position
-    penServo.write(nextPosition.penPosition);
+    // the +1 is just because the .read()
+    // returns the last value we wrote -1 ¯\_(ツ)_/¯
+    if(penServo.read()+1 != nextPosition.penPosition){
+      penServo.write(nextPosition.penPosition);
+      // without this delay the plotter starts
+      // moving before the pen has reached the bottom
+      delay(150);
+    }
   }
 
   return false;
@@ -254,12 +248,15 @@ bool parseCommand(int cmd){
     Serial.println(currentMode);
     Serial.println(calibrated);
     Serial.println(calibrating);
+
     Serial.println(amplitudeStepper->getPosition());
     Serial.println(amplitudeStepper->getTargetPosition());
     Serial.println(amplitudeStepper->getCurrentSpeed());
+
     Serial.println(angleStepper->getPosition());
     Serial.println(angleStepper->getTargetPosition());
     Serial.println(angleStepper->getCurrentSpeed());
+
     Serial.println(travelableDistanceSteps);
     Serial.println(stepsPerMm);
     Serial.println(minAmplitudePos);
@@ -269,6 +266,11 @@ bool parseCommand(int cmd){
     Serial.println(maxEncoderCount);
     Serial.println(nextPositionToPlace);
     Serial.println(nextPositionToGo);
+
+    Serial.println(digitalRead(zeroAmplitudePin));
+    Serial.println(digitalRead(maxAmplitudePin));
+    Serial.println(digitalRead(zeroAnglePin));
+    Serial.println(digitalRead(maxAnglePin));
     return true;
   case calibrate:
     // check if all the values are in the buffer
@@ -357,14 +359,10 @@ void setup()
   pinMode(angleDirPin, OUTPUT);
 
   // configure limit switches
-  pinMode(zeroAmplitudePin, INPUT_PULLUP);
-  pinMode(maxAmplitudePin, INPUT_PULLUP);
-  pinMode(zeroAnglePin, INPUT_PULLUP);
-  pinMode(maxAmplitudePin, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(zeroAmplitudePin), zeroAmplitudeInterrupt, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(maxAmplitudePin), maxAmplitudeInterrupt, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(zeroAnglePin), zeroAngleInterrupt, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(maxAnglePin), maxAngleInterrupt, CHANGE);
+  pinMode(zeroAmplitudePin, INPUT);
+  pinMode(maxAmplitudePin, INPUT);
+  pinMode(zeroAnglePin, INPUT);
+  pinMode(maxAnglePin, INPUT);
 
   // enable and create steppers
   digitalWrite(enableStepper, LOW);  // enable is LOW for a4988 driver
@@ -379,10 +377,6 @@ void setup()
   // attach servo
   penServo.attach(penServoPin);
   penServo.write(0);
-
-  // check if it is already homed
-  zeroAmplitudePressed = digitalRead(zeroAmplitudePin) == 1 ? false : true;
-  zeroAnglePressed = digitalRead(zeroAnglePin) == 1 ? false : true;
 }
 
 void loop()

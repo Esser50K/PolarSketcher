@@ -9,7 +9,7 @@ private:
     bool goingForward = true;
     long currentPosition = 0;
     int targetPosition;
-    int currentSpeed;              // current set speed for stepper in steps per second
+    int currentSpeed = 0;          // current set speed for stepper in steps per second
     int maxSpeed = 50000;          // max speed of this stepper is 500 steps per second
     int stepsPerRevolution = 200;  // total number of steps per revolution
     unsigned long lastStepTimestampMicros;

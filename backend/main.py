@@ -100,9 +100,6 @@ def main():
                         default=(600, 600))
     args = parser.parse_args()
     job_manager = DrawingJobManager()
-    if not args.dry_run:
-        # drawer = PolarSketcherDrawer
-        pass
 
     try:
         from gevent import pywsgi

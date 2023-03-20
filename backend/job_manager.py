@@ -46,7 +46,8 @@ class DrawingJob:
     def start(self):
         if self.polar_sketcher is not None:
             self.polar_sketcher.set_mode(Mode.HOME)
-            self.polar_sketcher.wait_for_idle()
+            status = self.polar_sketcher.wait_for_idle()
+            print("HOMED\n", status)
             status = self.polar_sketcher.calibrate()
             print(status)
             self.polar_sketcher.set_mode(Mode.DRAW)
@@ -75,7 +76,7 @@ class DrawingJob:
                     self.polar_sketcher.add_position(
                         amplitude_pos,
                         angle_pos,
-                        pen=20,
+                        pen=30,
                         amplitude_velocity=5000,
                         angle_velocity=1500
                     )
@@ -104,11 +105,14 @@ class DrawingJob:
                         time.sleep(.1)
                         status = self.polar_sketcher.update_status()
 
+                    # print(status)
+
                     # now that it is ready, add a new position
+                    point = (600-point[0], point[1])  # move from origin being in the top left to polar sketcher being on top right
                     amplitude_pos, angle_pos = self.polar_sketcher.convert_to_stepper_positions(
                                                                             self.path_generator.canvas_size,
                                                                             point)
-                    pen_position = 0 if first_point is None else 20
+                    pen_position = 0 if first_point is None else 30
 
                     self.polar_sketcher.add_position(
                         amplitude_pos,
