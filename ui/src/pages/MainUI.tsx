@@ -9,13 +9,15 @@ import NumberInput from '../units/NumberInput';
 import RangeInput from '../units/RangeInput';
 import CheckboxInput from '../units/CheckboxInput';
 
+const canvasDimensions = { x: 600, y: 600};
+
 function MainUI() {
     const [selectedFile, setSelectedFile] = useState("");
     const [svgContent, setSvgContent] = useState("");
     const [runningJobId, setRunningJobId] = useState("");
     const [websocket, setWebsocket] = useState<WebSocket>();
     const [drawnPoints, setDrawnPoints] = useState<[number, number][]>([]);
-    const [contentSize, setCotentSize] = useState([600, 600]);
+    const [contentSize, setCotentSize] = useState([canvasDimensions.x, canvasDimensions.y])
     const [contentPosition, setContentPosition] = useState({ x: 0, y: 0 });
     const [dryrunChecked, setDryrunChecked] = useState(true);
 
@@ -55,7 +57,7 @@ function MainUI() {
 
         try {
             const canvasDiv = document.getElementById("simulation-canvas");
-            const ratio = canvasDiv!.offsetWidth / 600;  // TODO: remove hardcoded arm length
+            const ratio = canvasDiv!.offsetWidth / canvasDimensions.x;
 
             const body = {
                 position: [contentPosition.x / ratio, contentPosition.y / ratio],
@@ -201,6 +203,7 @@ function MainUI() {
             <div className="canvas-containers">
                 <div className="preview-container mr-2">
                     <PreviewCanvas
+                        canvasDimensions={canvasDimensions}
                         rotation={rotation}
                         center={center}
                         maxout={maxout}
@@ -212,6 +215,7 @@ function MainUI() {
 
                 <div className="preview-container ml-2">
                     <SimulationCanvas
+                        canvasDimensions={canvasDimensions}
                         ws={websocket}
                         cutleft={cutLeft}
                         cutright={cutRight}
@@ -262,10 +266,10 @@ function MainUI() {
                         ></Dropdown>
                     </div>
                     <div className="ml-5 flex">
-                        <NumberInput title="Start X" default={0} max={600} onValueChange={(val) => { setSearchStartX(parseInt(val)) }}></NumberInput>
+                        <NumberInput title="Start X" default={0} max={canvasDimensions.x} onValueChange={(val) => { setSearchStartX(parseInt(val)) }}></NumberInput>
                     </div>
                     <div className="ml-5 flex">
-                        <NumberInput title="Start Y" default={0} max={600} onValueChange={(val) => { setSearchStartY(parseInt(val)) }}></NumberInput>
+                        <NumberInput title="Start Y" default={0} max={canvasDimensions.y} onValueChange={(val) => { setSearchStartY(parseInt(val)) }}></NumberInput>
                     </div>
                 </div>
             </div>

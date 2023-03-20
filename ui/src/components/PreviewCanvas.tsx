@@ -4,6 +4,7 @@ import "./PreviewCanvas.css";
 import { Rnd } from 'react-rnd';
 
 interface CanvasProps {
+  canvasDimensions: { x: number, y: number }
   svgContent?: string
   rotation?: number
   center?: boolean
@@ -23,7 +24,7 @@ const rndStyle = {
 function PreviewCanvas(props: CanvasProps) {
   const [contentDimensions, setContentDimensions] = useState({ width: 0, height: 0 });
   const [contentPosition, setContentPosition] = useState({ x: 0, y: 0 });
-  const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
+  const [vituralCanvasDimensions, setVirtualCanvasDimensions] = useState({ width: 0, height: 0 });
   const [currentSVGContent, setCurrentSVGContent] = useState<HTMLElement>();
   const [windowResizeEvent, setWidowResizeEvent] = useState<any>();
 
@@ -51,16 +52,16 @@ function PreviewCanvas(props: CanvasProps) {
   }
 
   useEffect(() => {
-    if (canvasDimensions.height === 0) {
+    if (vituralCanvasDimensions.height === 0) {
       const canvas = document.getElementById("canvas")
       // setting both as width since canvas is always square
-      setCanvasDimensions({ width: canvas?.offsetWidth || 0, height: canvas?.offsetWidth || 0 })
+      setVirtualCanvasDimensions({ width: canvas?.offsetWidth || 0, height: canvas?.offsetWidth || 0 })
     }
 
     window.addEventListener('resize', (event) => {
       const canvas = document.getElementById("canvas")
       // setting both as width since canvas is always square
-      setCanvasDimensions({ width: canvas?.offsetWidth || 0, height: canvas?.offsetWidth || 0 })
+      setVirtualCanvasDimensions({ width: canvas?.offsetWidth || 0, height: canvas?.offsetWidth || 0 })
       setWidowResizeEvent(event)
     })
   }, [])
@@ -77,8 +78,8 @@ function PreviewCanvas(props: CanvasProps) {
       return
     }
 
-    const x = (canvasDimensions.width / 2) - (contentDimensions.width / 2);
-    const y = (canvasDimensions.height / 2) - (contentDimensions.height / 2);
+    const x = (vituralCanvasDimensions.width / 2) - (contentDimensions.width / 2);
+    const y = (vituralCanvasDimensions.height / 2) - (contentDimensions.height / 2);
     setNewPos(x, y);
   }, [props.center])
 
@@ -91,19 +92,19 @@ function PreviewCanvas(props: CanvasProps) {
     let newContentHeight = contentDimensions.height;
     const vertical = contentDimensions.height > contentDimensions.width;
     if (vertical) {
-      newContentHeight = canvasDimensions.height;
+      newContentHeight = vituralCanvasDimensions.height;
       const increaseRatio = newContentHeight / contentDimensions.height;
       newContentWidth = contentDimensions.width * increaseRatio;
       resize(newContentWidth, newContentHeight);
     } else {
-      newContentWidth = canvasDimensions.width;
+      newContentWidth = vituralCanvasDimensions.width;
       const increaseRatio = newContentWidth / contentDimensions.width;
       newContentHeight = contentDimensions.height * increaseRatio;
       resize(newContentWidth, newContentHeight);
     }
 
-    const x = (canvasDimensions.width / 2) - (newContentWidth / 2);
-    const y = (canvasDimensions.height / 2) - (newContentHeight / 2);
+    const x = (vituralCanvasDimensions.width / 2) - (newContentWidth / 2);
+    const y = (vituralCanvasDimensions.height / 2) - (newContentHeight / 2);
     setNewPos(x, y);
   }, [props.maxout])
 
@@ -129,8 +130,8 @@ function PreviewCanvas(props: CanvasProps) {
     if (svgContent) {
       const viewBoxAny = (svgContent.viewBox as any)
       const dimensions = (viewBoxAny ? viewBoxAny.baseVal : svgContent.bbox) as SVGRect
-      const contentDimensionsWidth = Math.min(dimensions.width || 0, canvasDimensions.width);
-      const contentDimensionsHeight = Math.min(dimensions.height || 0, canvasDimensions.height);
+      const contentDimensionsWidth = Math.min(dimensions.width || 0, vituralCanvasDimensions.width);
+      const contentDimensionsHeight = Math.min(dimensions.height || 0, vituralCanvasDimensions.height);
       (svgContent as HTMLElement).setAttribute("width", String(contentDimensionsWidth) + "px");
       (svgContent as HTMLElement).setAttribute("height", String(contentDimensionsWidth) + "px");
       setCurrentSVGContent(svgContent as HTMLElement);
@@ -138,11 +139,12 @@ function PreviewCanvas(props: CanvasProps) {
     }
   }, [props.svgContent])
 
+  const canvasDimensionsRatio = props.canvasDimensions.x/vituralCanvasDimensions.width;
   return (
     <div className="canvas-container">
-      <div id="canvas" className="preview-canvas" style={{ height: canvasDimensions.width }}>
+      <div id="canvas" className="preview-canvas" style={{ height: vituralCanvasDimensions.width }}>
         {
-          canvasDimensions.width !== 0 ?
+          vituralCanvasDimensions.width !== 0 ?
             <Rnd
               style={rndStyle}
               size={{ width: contentDimensions.width, height: contentDimensions.height }}
@@ -155,6 +157,9 @@ function PreviewCanvas(props: CanvasProps) {
                 ref.style.minHeight = String(contentDimensions.height)
               }}
               position={{ x: contentPosition.x, y: contentPosition.y }}
+              onDrag={(e, d) => {
+                setContentPosition({ x: d.x, y: d.y })
+              }}
               onDragStop={(e, d) => {
                 if (props.onPositionUpdate) {
                   props.onPositionUpdate({ x: d.x, y: d.y })
@@ -168,10 +173,15 @@ function PreviewCanvas(props: CanvasProps) {
               enableResizing={{ "bottomRight": true }}
             >
               {props.svgContent ?
+                <div id="canvas-content-wrapper" className="canvas-content-wrapper">
+                <div id="position-label" className="svg-label" style={{left: "-50%", top: "-10%"}}>{(contentPosition.x*canvasDimensionsRatio).toFixed(1) + ", " + (contentPosition.y*canvasDimensionsRatio).toFixed(1)}</div>
+                <div id="width-label" className="svg-label" style={{top: "-10%"}}>{(contentDimensions.width*canvasDimensionsRatio).toFixed(1)}</div>
+                <div id="height-label" className="svg-label" style={{right: "-55%", top: "50%", rotate: "90deg"}}>{(contentDimensions.height*canvasDimensionsRatio).toFixed(1)}</div>
                 <div id="canvas-content" className="canvas-content"
                   /*style={{ height: contentDimensions.height, width: contentDimensions.width }}*/
                   style={{ transform: `rotate(${props.rotation}deg)` }}
                   dangerouslySetInnerHTML={{ __html: props.svgContent }}>
+                </div>
                 </div> : null}
             </Rnd> : null}
       </div>

@@ -3,9 +3,8 @@ import "../index.css"
 import RangeInput from '../units/RangeInput';
 import "./SimulationCanvas.css"
 
-const targetSize = 600;
-
 interface CanvasProps {
+  canvasDimensions: { x: number, y: number }
   ws?: WebSocket
   cutleft?: boolean
   cutright?: boolean
@@ -58,7 +57,7 @@ function SimulationCanvas(props: CanvasProps) {
       return
     }
 
-    const ratio = (canvas.current! as HTMLCanvasElement).width / targetSize;
+    const ratio = (canvas.current! as HTMLCanvasElement).width / props.canvasDimensions.x;
     for (let i = 0; i < progressIndex && i < drawnPoints.length; i++) {
       const point = drawnPoints[i];
       ctx.strokeRect(point[0] * ratio, point[1] * ratio, 1, 1);
@@ -119,7 +118,7 @@ function SimulationCanvas(props: CanvasProps) {
 
     const currentCanvas = canvas.current! as HTMLCanvasElement;
     ctx.clearRect(0, 0, currentCanvas.width, currentCanvas.height);
-    const ratio = currentCanvas.width / targetSize;
+    const ratio = currentCanvas.width / props.canvasDimensions.x;
 
     let startPoint = drawnPoints[0];
     ctx.beginPath();

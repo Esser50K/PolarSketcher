@@ -15,3 +15,14 @@
 .canvas-content {
   width: 100%;
 }
+
+.canvas-content-wrapper {
+  width: 100%;
+  position: relative;
+}
+
+.svg-label {
+  width: 100%;
+  position: absolute;
+  z-index: 1;
+}
