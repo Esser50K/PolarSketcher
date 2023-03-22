@@ -63,6 +63,7 @@ class DrawingJob:
         }))
 
     def run(self):
+        position_sent_counter = 0
         first_point = None
         for point in self.path_generator.generate_points():
             if self._stop:
@@ -94,21 +95,7 @@ class DrawingJob:
             else:
                 self.current_path.append(point)
                 if self.polar_sketcher is not None:
-                    # so it can happen that we sent too many positions to the controller
-                    # to the point where it is stuck reading the next positions
-                    # because nextPosToPlaceIdx is about to overwrite nextPosToGoIdx
-                    # to avoid that we check if we can write a position by checking
-                    # the status first and then wait until the controller can
-                    # receive new positions
-                    status = self.polar_sketcher.update_status()
-                    while(status.nextPosToPlaceIdx == status.nextPosToGoIdx):
-                        time.sleep(.1)
-                        status = self.polar_sketcher.update_status()
-
-                    # print(status)
-
-                    # now that it is ready, add a new position
-                    point = (600-point[0], point[1])  # move from origin being in the top left to polar sketcher being on top right
+                    point = (575-point[0], point[1])  # move from origin being in the top left to polar sketcher being on top right
                     amplitude_pos, angle_pos = self.polar_sketcher.convert_to_stepper_positions(
                                                                             self.path_generator.canvas_size,
                                                                             point)
@@ -121,6 +108,8 @@ class DrawingJob:
                         amplitude_velocity=5000,
                         angle_velocity=1500
                     )
+                    position_sent_counter += 1
+                    print("SENT POSITIONS", position_sent_counter)
 
                 if first_point is None:
                     first_point = point

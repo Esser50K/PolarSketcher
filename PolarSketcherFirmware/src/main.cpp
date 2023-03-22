@@ -20,10 +20,10 @@ const int encoderPhaseBPin = 26;
 
 const int penServoPin = 13;
 
-const long BAUD_RATE = 115200;
+const long BAUD_RATE = 921600;
 
 // physical measurements
-const int railLengthMm = 599;
+const int railLengthMm = 575;
 const int penHolderRadiusMm = 12;
 const int offsetMm = 25 + penHolderRadiusMm;
 const int carriageLenghtMm = 84 - penHolderRadiusMm;
@@ -320,6 +320,7 @@ bool parseCommand(int cmd){
 
     futurePositions[nextPositionToPlace] = p;
     nextPositionToPlace = (nextPositionToPlace+1) % futurePositionsLength;
+    Serial.write(1);  // ack position added
     return true;
   default:
     return true;

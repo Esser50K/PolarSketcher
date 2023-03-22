@@ -9,7 +9,7 @@ import NumberInput from '../units/NumberInput';
 import RangeInput from '../units/RangeInput';
 import CheckboxInput from '../units/CheckboxInput';
 
-const canvasDimensions = { x: 600, y: 600};
+const canvasDimensions = { x: 575, y: 575};
 
 function MainUI() {
     const [selectedFile, setSelectedFile] = useState("");

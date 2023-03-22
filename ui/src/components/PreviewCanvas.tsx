@@ -143,6 +143,7 @@ function PreviewCanvas(props: CanvasProps) {
   return (
     <div className="canvas-container">
       <div id="canvas" className="preview-canvas" style={{ height: vituralCanvasDimensions.width }}>
+      <div id="canvas-limits" className="canvas-limits"></div>
         {
           vituralCanvasDimensions.width !== 0 ?
             <Rnd
@@ -174,16 +175,17 @@ function PreviewCanvas(props: CanvasProps) {
             >
               {props.svgContent ?
                 <div id="canvas-content-wrapper" className="canvas-content-wrapper">
-                <div id="position-label" className="svg-label" style={{left: "-50%", top: "-10%"}}>{(contentPosition.x*canvasDimensionsRatio).toFixed(1) + ", " + (contentPosition.y*canvasDimensionsRatio).toFixed(1)}</div>
-                <div id="width-label" className="svg-label" style={{top: "-10%"}}>{(contentDimensions.width*canvasDimensionsRatio).toFixed(1)}</div>
-                <div id="height-label" className="svg-label" style={{right: "-55%", top: "50%", rotate: "90deg"}}>{(contentDimensions.height*canvasDimensionsRatio).toFixed(1)}</div>
-                <div id="canvas-content" className="canvas-content"
-                  /*style={{ height: contentDimensions.height, width: contentDimensions.width }}*/
-                  style={{ transform: `rotate(${props.rotation}deg)` }}
-                  dangerouslySetInnerHTML={{ __html: props.svgContent }}>
-                </div>
+                  <div id="position-label" className="svg-label" style={{left: "-50%", top: "-10%"}}>{(contentPosition.x*canvasDimensionsRatio).toFixed(1) + ", " + (contentPosition.y*canvasDimensionsRatio).toFixed(1)}</div>
+                  <div id="width-label" className="svg-label" style={{top: "-10%"}}>{(contentDimensions.width*canvasDimensionsRatio).toFixed(1)}</div>
+                  <div id="height-label" className="svg-label" style={{right: "-55%", top: "50%", rotate: "90deg"}}>{(contentDimensions.height*canvasDimensionsRatio).toFixed(1)}</div>
+                  <div id="canvas-content" className="canvas-content"
+                    /*style={{ height: contentDimensions.height, width: contentDimensions.width }}*/
+                    style={{ transform: `rotate(${props.rotation}deg)` }}
+                    dangerouslySetInnerHTML={{ __html: props.svgContent }}>
+                  </div>
                 </div> : null}
-            </Rnd> : null}
+            </Rnd> : null
+        }
       </div>
     </div >
   );

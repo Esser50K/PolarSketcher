@@ -25,8 +25,8 @@ GET = "GET"
 POST = "POST"
 DELETE = "DELETE"
 
-CANVAS_WIDTH_MM = int(os.getenv("CANVAS_WIDTH_MM", 600))
-CANVAS_HEIGHT_MM = int(os.getenv("CANVAS_HEIGHT_MM", 600))
+CANVAS_WIDTH_MM = int(os.getenv("CANVAS_WIDTH_MM", 575))
+CANVAS_HEIGHT_MM = int(os.getenv("CANVAS_HEIGHT_MM", 575))
 
 job_manager: DrawingJobManager = None
 

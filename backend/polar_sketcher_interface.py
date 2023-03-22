@@ -102,7 +102,7 @@ class Status:
 
 
 class PolarSketcherInterface:
-    def __init__(self, port='/dev/cu.usbserial-0001', baud_rate=115200):
+    def __init__(self, port='/dev/cu.usbserial-0001', baud_rate=921600):
         self.port = port
         self.baud_rate = baud_rate
         self.serial = serial.Serial(port, baud_rate)
@@ -131,17 +131,17 @@ class PolarSketcherInterface:
 
         # TODO read calibration from a file or something
         # travelable distance steps
-        self.serial.write(self.__encode_int(37660))
+        self.serial.write(self.__encode_int(37548))
         # steps per mm
-        self.serial.write(self.__encode_float(76.86))
+        self.serial.write(self.__encode_float(80.58))
         # minAmplitudePos
-        self.serial.write(self.__encode_int(2812))
+        self.serial.write(self.__encode_int(2960))
         # maxAmplituePos
-        self.serial.write(self.__encode_int(40472))
+        self.serial.write(self.__encode_int(40508))
         # maxAnglePos
-        self.serial.write(self.__encode_int(14509))
+        self.serial.write(self.__encode_int(14539))
         # maxEncoderCount
-        self.serial.write(self.__encode_int(1226))
+        self.serial.write(self.__encode_int(1217))
         return self.update_status()
 
     def add_position(self, amplitude, angle, pen, amplitude_velocity, angle_velocity):
@@ -151,6 +151,7 @@ class PolarSketcherInterface:
         self.serial.write(self.__encode_int(pen))
         self.serial.write(self.__encode_int(amplitude_velocity))
         self.serial.write(self.__encode_int(angle_velocity))
+        self.serial.read(1)  # ack byte
 
     def update_status(self) -> Status:
         self.serial.write(self.__encode_int(Command.GET_STATUS.value))
@@ -168,10 +169,12 @@ class PolarSketcherInterface:
         amplitude = polar_coords[0]
         angle = polar_coords[1] * (180 / pi)
 
+        # TODO enable this in the future as a feature
         # this is considering the canvas as a rect
         # so the the stepper cannot reach the extremities in all positions
-        polar_canvas: complex = polar(complex(canvas_size[0], canvas_size[1]))
-        canvas_amplitude = polar_canvas[0]
+        # polar_canvas: complex = polar(complex(canvas_size[0], canvas_size[1]))
+        # canvas_amplitude = polar_canvas[0]
+        canvas_amplitude = canvas_size[0]
 
         amplitudeSteps = mapMinMax(amplitude, 0, canvas_amplitude, 0, self.status.maxAmplituePos)
         angleSteps = mapMinMax(angle, 0, 90, 0, self.status.maxAnglePos)
