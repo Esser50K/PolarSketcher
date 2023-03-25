@@ -8,7 +8,6 @@ from typing import Union, List
 from geventwebsocket.websocket import WebSocket
 from svgpathtools import Path
 
-import svg_parse_utils
 from sort_paths import SORTING_ALGORITHMS, sort_paths
 from toolpath_generation.algorithm_getter import get_toolpath_algo
 
@@ -95,7 +94,8 @@ class DrawingJob:
             else:
                 self.current_path.append(point)
                 if self.polar_sketcher is not None:
-                    point = (575-point[0], point[1])  # move from origin being in the top left to polar sketcher being on top right
+                    # move from origin being in the top left to polar sketcher being on top right
+                    point = (self.path_generator.canvas_size[0]-point[0], point[1])
                     amplitude_pos, angle_pos = self.polar_sketcher.convert_to_stepper_positions(
                                                                             self.path_generator.canvas_size,
                                                                             point)

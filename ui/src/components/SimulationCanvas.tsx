@@ -179,7 +179,7 @@ function SimulationCanvas(props: CanvasProps) {
         <div id="simulation-canvas" className="simulation-canvas">
           <canvas ref={canvas}></canvas>
         </div>
-      </div >
+      </div>
       <div className="w-full pt-2 mb-2">
         <RangeInput
           hideValue

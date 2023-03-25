@@ -26,7 +26,7 @@ function PreviewCanvas(props: CanvasProps) {
   const [contentPosition, setContentPosition] = useState({ x: 0, y: 0 });
   const [vituralCanvasDimensions, setVirtualCanvasDimensions] = useState({ width: 0, height: 0 });
   const [currentSVGContent, setCurrentSVGContent] = useState<HTMLElement>();
-  const [windowResizeEvent, setWidowResizeEvent] = useState<any>();
+  const [windowResizeEvent, setWindowResizeEvent] = useState<any>();
 
 
   const resize = (width: number, height: number) => {
@@ -62,7 +62,7 @@ function PreviewCanvas(props: CanvasProps) {
       const canvas = document.getElementById("canvas")
       // setting both as width since canvas is always square
       setVirtualCanvasDimensions({ width: canvas?.offsetWidth || 0, height: canvas?.offsetWidth || 0 })
-      setWidowResizeEvent(event)
+      setWindowResizeEvent(event)
     })
   }, [])
 
@@ -142,8 +142,9 @@ function PreviewCanvas(props: CanvasProps) {
   const canvasDimensionsRatio = props.canvasDimensions.x/vituralCanvasDimensions.width;
   return (
     <div className="canvas-container">
-      <div id="canvas" className="preview-canvas" style={{ height: vituralCanvasDimensions.width }}>
-      <div id="canvas-limits" className="canvas-limits"></div>
+      <div id="canvas" className="preview-canvas">
+      <div id="canvas-limits-round" className="canvas-limits-round"></div>
+      <div id="canvas-limits-corner" className="canvas-limits-corner"></div>
         {
           vituralCanvasDimensions.width !== 0 ?
             <Rnd
@@ -171,7 +172,7 @@ function PreviewCanvas(props: CanvasProps) {
               lockAspectRatio
               dragAxis="both"
               bounds=".preview-canvas"
-              enableResizing={{ "bottomRight": true }}
+              // enableResizing={{ "bottomRight": true }}
             >
               {props.svgContent ?
                 <div id="canvas-content-wrapper" className="canvas-content-wrapper">
