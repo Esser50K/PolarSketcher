@@ -1,16 +1,8 @@
 import json
 import uuid
 import time
-from queue import Queue, Empty, Full
 from threading import Thread, Event
-from typing import Union, List
-
 from geventwebsocket.websocket import WebSocket
-from svgpathtools import Path
-
-from sort_paths import SORTING_ALGORITHMS, sort_paths
-from toolpath_generation.algorithm_getter import get_toolpath_algo
-
 from path_generator import PathGenerator, CLOSE_PATH_COMMAND, PATH_END_COMMAND
 from polar_sketcher_interface import PolarSketcherInterface, Mode
 
@@ -46,7 +38,6 @@ class DrawingJob:
         if self.polar_sketcher is not None:
             self.polar_sketcher.set_mode(Mode.HOME)
             status = self.polar_sketcher.wait_for_idle()
-            print("HOMED\n", status)
             status = self.polar_sketcher.calibrate()
             print(status)
             self.polar_sketcher.set_mode(Mode.DRAW)
@@ -57,6 +48,7 @@ class DrawingJob:
         webconn = DrawingJobWebConnection(ws, event)
         self.connected_ws[webconn.unique_origin] = webconn
         webconn.ws.send(json.dumps({
+            "job_id": str(self.job_id),
             "type": "update",
             "payload": self.drawn_paths
         }))
@@ -88,6 +80,7 @@ class DrawingJob:
 
                 # update all web connections
                 self._broadcast(json.dumps({
+                    "job_id": str(self.job_id),
                     "type": "update",
                     "payload": self.drawn_paths
                 }))

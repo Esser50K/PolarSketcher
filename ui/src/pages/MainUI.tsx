@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import '../index.css';
 import './MainUI.css';
-import PreviewCanvas from '../components/PreviewCanvas'
+import PreviewCanvas, {DrawnSVG} from '../components/PreviewCanvas'
 import SimulationCanvas from '../components/SimulationCanvas'
 import Dropdown from '../units/Dropdown';
 import Divider from '../units/Divider';
@@ -21,6 +21,7 @@ function MainUI() {
     const [contentSize, setCotentSize] = useState([canvasDimensions.x, canvasDimensions.y])
     const [contentPosition, setContentPosition] = useState({ x: 0, y: 0 });
     const [dryrunChecked, setDryrunChecked] = useState(true);
+    const [drawnSVGs, setDrawnSVGs] = useState<DrawnSVG[]>([]);
 
     // edit tools
     const [center, setCenter] = useState(false);
@@ -96,6 +97,15 @@ function MainUI() {
                 websocket.close();
             }
             setWebsocket(undefined);
+
+            const newDrawnSVGs = drawnSVGs;
+            newDrawnSVGs.push({
+                svgContent: svgContent,
+                position: body.position,
+                rotation: body.rotation,
+                dimensions: body.size
+            })
+            setDrawnSVGs(newDrawnSVGs)
         } catch (e) {
             alert("failed to upload image: " + e)
         }
@@ -209,6 +219,7 @@ function MainUI() {
                         center={center}
                         maxout={maxout}
                         svgContent={svgContent}
+                        drawnSVGs={drawnSVGs}
                         onResizeUpdate={onResizeUpdate}
                         onPositionUpdate={onPositionUpdate}>
                     </PreviewCanvas>
