@@ -200,7 +200,7 @@ class PathGenerator:
             print("error getting points:", e)
             raise e
 
-        scaled_path_len = path_len * render_scale * 5
+        scaled_path_len = path_len * render_scale * 25
         total_points = int(scaled_path_len)
         if total_points == 0:
             return

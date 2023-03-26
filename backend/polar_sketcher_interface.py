@@ -131,17 +131,17 @@ class PolarSketcherInterface:
 
         # TODO read calibration from a file or something
         # travelable distance steps
-        self.serial.write(self.__encode_int(37548))
+        self.serial.write(self.__encode_int(37418))
         # steps per mm
-        self.serial.write(self.__encode_float(80.58))
+        self.serial.write(self.__encode_float(80.3))
         # minAmplitudePos
         self.serial.write(self.__encode_int(2960))
         # maxAmplituePos
-        self.serial.write(self.__encode_int(40508))
+        self.serial.write(self.__encode_int(40379))
         # maxAnglePos
-        self.serial.write(self.__encode_int(14539))
+        self.serial.write(self.__encode_int(14487))
         # maxEncoderCount
-        self.serial.write(self.__encode_int(1217))
+        self.serial.write(self.__encode_int(1233))
         return self.update_status()
 
     def add_position(self, amplitude, angle, pen, amplitude_velocity, angle_velocity):

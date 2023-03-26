@@ -23,7 +23,7 @@ const int penServoPin = 13;
 const long BAUD_RATE = 921600;
 
 // physical measurements
-const int railLengthMm = 575;
+const int railLengthMm = 585;
 const int penHolderRadiusMm = 12;
 const int offsetMm = 25 + penHolderRadiusMm;
 const int carriageLenghtMm = 84 - penHolderRadiusMm;
@@ -79,6 +79,15 @@ bool home() {
     angleEncoder.setCount(0);
   } else {
     angleStepper->singleStepAtSpeed(false);
+  }
+
+  // perform extra checks because of flaky reads
+  int nChecks = 0;
+  int necessaryChecks = 5;
+  while(zeroAmplitudePressed && zeroAnglePressed && nChecks < necessaryChecks){
+    zeroAmplitudePressed = digitalRead(zeroAmplitudePin) == 1 ? false : true;
+    zeroAnglePressed = digitalRead(zeroAnglePin) == 1 ? false : true;
+    nChecks++;
   }
 
   return zeroAmplitudePressed && zeroAnglePressed;
@@ -163,10 +172,9 @@ int nextPositionToPlace = 1;
 int nextPositionToGo = 0;
 position futurePositions[futurePositionsLength];
 
-// TODO play around with the logic
-// could only correct after angle stepper moved a lot
-int positionsSinceCorrection = 0;
-const int correctAfterNPositions = 10;
+int stepsSinceCorrection = 0;
+int previousMove = 0;
+const int stepsUntilCorrection = 100;
 bool draw() {
   // step toward target
   if (amplitudeStepper->getPosition() != amplitudeStepper->getTargetPosition() ||
@@ -180,15 +188,12 @@ bool draw() {
       return false;
     }
 
-    // correct angle position
-    positionsSinceCorrection = (positionsSinceCorrection+1) % correctAfterNPositions;
-    if(positionsSinceCorrection == 0) {
-      int realAnglePos = encoderPosToAnglePos();
-      angleStepper->setPosition(encoderPosToAnglePos());
-      // int errorThreshold = maxAnglePos * 0.0001;
-      // if(abs(realAnglePos - angleStepper->getPosition()) > errorThreshold){
-      //   angleStepper->setPosition(encoderPosToAnglePos());
-      // }
+    // correct angle stepper position
+    stepsSinceCorrection += previousMove;
+    if((stepsSinceCorrection > stepsUntilCorrection)) {
+      int encoderAnglePos = encoderPosToAnglePos();
+      angleStepper->setPosition(encoderAnglePos);
+      stepsSinceCorrection = 0;
     }
 
     // set new target
@@ -198,6 +203,9 @@ bool draw() {
     angleStepper->setTargetPosition(nextPosition.anglePosition);
     amplitudeStepper->setSpeed(nextPosition.amplitudeVelocity);
     angleStepper->setSpeed(nextPosition.angleVelocity);
+    
+    // count angle steps
+    previousMove = abs(angleStepper->getPosition()-angleStepper->getTargetPosition());
 
     // put pen in position
     // the +1 is just because the .read()

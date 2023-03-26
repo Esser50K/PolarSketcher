@@ -9,7 +9,8 @@ import NumberInput from '../units/NumberInput';
 import RangeInput from '../units/RangeInput';
 import CheckboxInput from '../units/CheckboxInput';
 
-const canvasDimensions = { x: 585, y: 585};
+// canvasWidth(513)-cariageLength(72)
+const canvasDimensions = { x: 513, y: 513};
 
 function MainUI() {
     const [selectedFile, setSelectedFile] = useState("");
