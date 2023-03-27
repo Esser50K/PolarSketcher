@@ -4,12 +4,14 @@ import RangeInput from '../units/RangeInput';
 import "./SimulationCanvas.css"
 
 interface CanvasProps {
+  fullCanvasDimensions: { x: number, y: number }
   canvasDimensions: { x: number, y: number }
   ws?: WebSocket
   cutleft?: boolean
   cutright?: boolean
   points?: [number, number][]
   children?: React.ReactNode
+  inReducedMode: boolean
 }
 
 const rndStyle = {
@@ -30,9 +32,13 @@ function SimulationCanvas(props: CanvasProps) {
   const [windowResizeEvent, setWidowResizeEvent] = useState<any>();
 
   const ratioedPoint = (point: [number, number], ratio: number): [number, number] => {
-    return [point[0]*ratio, point[1]*ratio];
+    let reducedModeDiff = 0;
+    if (props.inReducedMode) {
+      reducedModeDiff = props.fullCanvasDimensions.x - props.canvasDimensions.x;
+    }
+    return [(point[0] - reducedModeDiff) * ratio, point[1] * ratio];
   }
-  
+
   const redraw = () => {
     if (canvas.current === null) {
       return
@@ -86,7 +92,7 @@ function SimulationCanvas(props: CanvasProps) {
       const update = JSON.parse(event.data);
       const allPaths: [[number, number]][] = update.payload;
       const jobId: string = update.job_id;
-      
+
       let newAccumulatedPaths = accumulatedPaths;
       if (jobId !== currentJobId) {
         newAccumulatedPaths = accumulatedPaths.concat(currentJobPaths);
@@ -97,17 +103,17 @@ function SimulationCanvas(props: CanvasProps) {
       setCurrentJobPaths(allPaths)
 
       let allPoints: [number, number][] = [];
-      for(let i = 0; i < newAccumulatedPaths.length; i++) {
+      for (let i = 0; i < newAccumulatedPaths.length; i++) {
         const path = newAccumulatedPaths[i];
         allPoints = allPoints.concat(path);
         allPoints.push([-1, -1]);
       }
-      for(let i = 0; i < allPaths.length; i++) {
+      for (let i = 0; i < allPaths.length; i++) {
         const path = allPaths[i];
         allPoints = allPoints.concat(path);
         allPoints.push([-1, -1]);
       }
-      
+
       setDrawnPoints(allPoints);
       setProgressIndex(allPoints.length);
     }
@@ -133,12 +139,12 @@ function SimulationCanvas(props: CanvasProps) {
     let moveOnly = false;
     for (let i = 1; i < progressIndex && i < drawnPoints.length; i++) {
       const point = drawnPoints[i];
-      
+
       if (point[0] === -1 && point[1] === -1) {
         moveOnly = true;
         continue;
       }
-      
+
       if (moveOnly) {
         ctx.moveTo(...ratioedPoint(point, ratio));
         startPoint = point;
@@ -147,10 +153,10 @@ function SimulationCanvas(props: CanvasProps) {
         ctx.lineTo(...ratioedPoint(point, ratio));
       }
     }
-    
+
     ctx.stroke();
 
-  }, [progressIndex])
+  }, [progressIndex, props.canvasDimensions])
 
   useEffect(() => {
     setDrawnPoints(drawnPoints.slice(progressIndex, drawnPoints.length - 1));
@@ -169,8 +175,8 @@ function SimulationCanvas(props: CanvasProps) {
     clearTimeout(delayedProgressIndexUpdate);
 
     delayedProgressIndexUpdate = setTimeout(() => {
-                                   setProgressIndex(value);
-                                 }, 5);
+      setProgressIndex(value);
+    }, 5);
   }
 
   const clearCanvas = () => {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import '../index.css';
 import './MainUI.css';
-import PreviewCanvas, {DrawnSVG} from '../components/PreviewCanvas'
+import PreviewCanvas, { DrawnSVG } from '../components/PreviewCanvas'
 import SimulationCanvas from '../components/SimulationCanvas'
 import Dropdown from '../units/Dropdown';
 import Divider from '../units/Divider';
@@ -9,8 +9,9 @@ import NumberInput from '../units/NumberInput';
 import RangeInput from '../units/RangeInput';
 import CheckboxInput from '../units/CheckboxInput';
 
-// canvasWidth(513)-cariageLength(72)
-const canvasDimensions = { x: 513, y: 513};
+// canvasWidth(585)-cariageLength(72)
+const CANVAS_WIDTH = 513;
+const CANVAS_HEIGHT = 513;
 
 function MainUI() {
     const [selectedFile, setSelectedFile] = useState("");
@@ -18,10 +19,12 @@ function MainUI() {
     const [runningJobId, setRunningJobId] = useState("");
     const [websocket, setWebsocket] = useState<WebSocket>();
     const [drawnPoints, setDrawnPoints] = useState<[number, number][]>([]);
-    const [contentSize, setCotentSize] = useState([canvasDimensions.x, canvasDimensions.y])
+    const [contentSize, setCotentSize] = useState([CANVAS_WIDTH, CANVAS_HEIGHT])
     const [contentPosition, setContentPosition] = useState({ x: 0, y: 0 });
     const [dryrunChecked, setDryrunChecked] = useState(true);
+    const [inReducedMode, setReducedMode] = useState(false);
     const [drawnSVGs, setDrawnSVGs] = useState<DrawnSVG[]>([]);
+    const [canvasDimensions, setCanvasDimensions] = useState<{ x: number, y: number }>({ x: CANVAS_WIDTH, y: CANVAS_HEIGHT });
 
     // edit tools
     const [center, setCenter] = useState(false);
@@ -59,11 +62,16 @@ function MainUI() {
 
         try {
             const canvasDiv = document.getElementById("simulation-canvas");
-            const ratio = canvasDiv!.offsetWidth / canvasDimensions.x;
+            const realToVirtualRatio = (canvasDiv!.offsetWidth / canvasDimensions.x);
 
+            const sizeInPreviewCanvas = [contentSize[0] / realToVirtualRatio, contentSize[1] / realToVirtualRatio]
+            const posInPreviewCanvas = [(contentPosition.x / realToVirtualRatio), (contentPosition.y / realToVirtualRatio)]
+            const reducedModeOffset = CANVAS_WIDTH - canvasDimensions.x;
             const body = {
-                position: [contentPosition.x / ratio, contentPosition.y / ratio],
-                size: [contentSize[0] / ratio, contentSize[1] / ratio],
+                position: [
+                    posInPreviewCanvas[0] + reducedModeOffset,
+                    posInPreviewCanvas[1]],
+                size: [sizeInPreviewCanvas[0], sizeInPreviewCanvas[1]],
                 dryrun: dryrunChecked,
                 rotation: rotation,
                 toolpath_config: {
@@ -110,6 +118,24 @@ function MainUI() {
             alert("failed to upload image: " + e)
         }
     }
+
+    const polar2Cartesian = (amplitude: number, angle: number) => {
+        // Convert polar to cartesian
+        const x = amplitude * Math.cos(angle * (Math.PI / 180));
+        const y = amplitude * Math.sin(angle * (Math.PI / 180));
+        return { x: x, y: y };
+    }
+
+    useEffect(() => {
+        if (inReducedMode) {
+            // will limit the drawable area to a square that can be fully reached
+            const reducedCanvasWidth = polar2Cartesian(CANVAS_WIDTH, 45);
+            setCanvasDimensions({ x: reducedCanvasWidth.x, y: reducedCanvasWidth.x })
+        } else {
+            const ratio = canvasDimensions.x / CANVAS_WIDTH;
+            setCanvasDimensions({ x: CANVAS_WIDTH, y: CANVAS_HEIGHT })
+        }
+    }, [inReducedMode])
 
     useEffect(() => {
         if (runningJobId === "") {
@@ -209,17 +235,24 @@ function MainUI() {
                     <div className="flex ml-2">
                         <RangeInput title="rotate" max={360} onValueChange={(val) => setRotation(parseInt(val))}></RangeInput>
                     </div>
+                    <div className="flex ml-2">
+                        <button className="button-base" onClick={() => setReducedMode(!inReducedMode)}>
+                            toggle reduced mode
+                        </button>
+                    </div>
                 </div>
             </div>
             <div className="canvas-containers">
                 <div className="preview-container mr-2">
                     <PreviewCanvas
+                        fullCanvasDimensions={{ x: CANVAS_WIDTH, y: CANVAS_HEIGHT }}
                         canvasDimensions={canvasDimensions}
                         rotation={rotation}
                         center={center}
                         maxout={maxout}
                         svgContent={svgContent}
                         drawnSVGs={drawnSVGs}
+                        inReducedMode={inReducedMode}
                         onResizeUpdate={onResizeUpdate}
                         onPositionUpdate={onPositionUpdate}>
                     </PreviewCanvas>
@@ -227,10 +260,12 @@ function MainUI() {
 
                 <div className="preview-container ml-2">
                     <SimulationCanvas
+                        fullCanvasDimensions={{ x: CANVAS_WIDTH, y: CANVAS_HEIGHT }}
                         canvasDimensions={canvasDimensions}
                         ws={websocket}
                         cutleft={cutLeft}
                         cutright={cutRight}
+                        inReducedMode={inReducedMode}
                     ></SimulationCanvas>
                 </div>
             </div>

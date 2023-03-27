@@ -9,7 +9,7 @@
 .preview-canvas {
   position: relative;
   width: 100%;
-  aspect-ratio : 1 / 1;
+  aspect-ratio: 1 / 1;
   background-color: rgba(255, 0, 0, 0.2);
 }
 
@@ -42,9 +42,6 @@
 
 .canvas-limits-corner {
   background-color: rgba(255, 0, 0, 0.2);
-  /* the drawing offset from the base is 30mm out of 585mm */
-  width: 5.13%;
-  height: 5.13%;
   position: absolute;
   right: 0;
   top: 0;

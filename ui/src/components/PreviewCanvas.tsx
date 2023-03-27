@@ -11,6 +11,7 @@ export interface DrawnSVG {
 }
 
 interface CanvasProps {
+  fullCanvasDimensions: { x: number, y: number }
   canvasDimensions: { x: number, y: number }
   svgContent?: string
   rotation?: number
@@ -18,6 +19,7 @@ interface CanvasProps {
   maxout?: boolean
   children?: React.ReactNode
   drawnSVGs: DrawnSVG[]
+  inReducedMode: boolean
   onPositionUpdate?: (pos: { x: number, y: number }) => void
   onResizeUpdate?: (width: number, height: number) => void
 }
@@ -124,7 +126,6 @@ function PreviewCanvas(props: CanvasProps) {
     const content = document.getElementById("canvas-content");
     let svgContent = content?.firstChild as SVGProps<SVGElement>;
     content?.childNodes?.forEach((value, key) => {
-      console.info(key, value, value.nodeName);
       if (value.nodeName === "svg") {
         svgContent = value as SVGProps<SVGElement>;
       }
@@ -147,72 +148,88 @@ function PreviewCanvas(props: CanvasProps) {
     }
   }, [props.svgContent])
 
-  const canvasDimensionsRatio = props.canvasDimensions.x/vituralCanvasDimensions.width;
+  // calculate where to draw previously drawn SVGs
+  let reducedModeDiff = 0;
+  if (props.inReducedMode) {
+    reducedModeDiff = props.fullCanvasDimensions.x - props.canvasDimensions.x;
+  }
+
+  // the side of the base is 30mm out of whatever the canvas currently is
+  const widthPercentage = (30 * 100.0) / props.canvasDimensions.x;
+  const canvasDimensionsRatio = props.canvasDimensions.x / vituralCanvasDimensions.width;
   return (
     <div className="canvas-container">
-      <div id="canvas" className="preview-canvas">
-      <div id="canvas-limits-round" className="canvas-limits-round"></div>
-      <div id="canvas-limits-corner" className="canvas-limits-corner"></div>
-      {props.drawnSVGs.map((drawnSVG: DrawnSVG, idx: number) => {
-        return <div key={`drawn_svg_${idx}`} className="canvas-content"
-                    style={{ position: "absolute",
-                            transform: `rotate(${drawnSVG.rotation}deg)`,
-                            width: drawnSVG.dimensions[0]/canvasDimensionsRatio,
-                            height: drawnSVG.dimensions[1]/canvasDimensionsRatio,
-                            left: drawnSVG.position[0]/canvasDimensionsRatio,
-                            top: drawnSVG.position[1]/canvasDimensionsRatio }}
-                    dangerouslySetInnerHTML={{ __html: drawnSVG.svgContent }}>
+      <div id="canvas" className="preview-canvas"
+        style={{ backgroundColor: props.inReducedMode ? "white" : "rgba(255, 0, 0, 0.2)" }}>
+        {
+          !props.inReducedMode ?
+            <div id="canvas-limits-round" className="canvas-limits-round"></div> : null
+        }
+        <div id="canvas-limits-corner" className="canvas-limits-corner"
+          style={{ width: `${widthPercentage}%`, height: `${widthPercentage}%` }}>
         </div>
+        {props.drawnSVGs.map((drawnSVG: DrawnSVG, idx: number) => {
+          return <div key={`drawn_svg_${idx}`} className="canvas-content"
+            style={{
+              position: "absolute",
+              transform: `rotate(${drawnSVG.rotation}deg)`,
+              width: drawnSVG.dimensions[0] / canvasDimensionsRatio,
+              height: drawnSVG.dimensions[1] / canvasDimensionsRatio,
+              left: (drawnSVG.position[0] - reducedModeDiff) / canvasDimensionsRatio,
+              top: drawnSVG.position[1] / canvasDimensionsRatio
+            }}
+            dangerouslySetInnerHTML={{ __html: drawnSVG.svgContent }}>
+          </div>
         })}
 
-      {
-        vituralCanvasDimensions.width !== 0 ?
-          <Rnd
-            style={rndStyle}
-            size={{ width: contentDimensions.width, height: contentDimensions.height }}
-            onResize={(e, direction, ref, delta, position) => {
-              resize(parseInt(ref.style.width), parseInt(ref.style.height))
-            }}
-            onResizeStop={(e, direction, ref, delta, position) => {
-              resize(parseInt(ref.style.width), parseInt(ref.style.height));
-              ref.style.minWidth = String(contentDimensions.width)
-              ref.style.minHeight = String(contentDimensions.height)
-            }}
-            position={{ x: contentPosition.x, y: contentPosition.y }}
-            onDrag={(e, d) => {
-              setContentPosition({ x: d.x, y: d.y })
-            }}
-            onDragStop={(e, d) => {
-              if (props.onPositionUpdate) {
-                props.onPositionUpdate({ x: d.x, y: d.y })
-              }
-              setContentPosition({ x: d.x, y: d.y })
-            }}
+        {
+          vituralCanvasDimensions.width !== 0 ?
+            <Rnd
+              style={rndStyle}
+              size={{ width: contentDimensions.width, height: contentDimensions.height }}
+              onResize={(e, direction, ref, delta, position) => {
+                resize(parseInt(ref.style.width), parseInt(ref.style.height))
+              }}
+              onResizeStop={(e, direction, ref, delta, position) => {
+                resize(parseInt(ref.style.width), parseInt(ref.style.height));
+                ref.style.minWidth = String(contentDimensions.width)
+                ref.style.minHeight = String(contentDimensions.height)
+              }}
+              position={{ x: contentPosition.x, y: contentPosition.y }}
+              onDrag={(e, d) => {
+                setContentPosition({ x: d.x, y: d.y })
+              }}
+              onDragStop={(e, d) => {
+                if (props.onPositionUpdate) {
+                  props.onPositionUpdate({ x: d.x, y: d.y })
+                }
+                setContentPosition({ x: d.x, y: d.y })
+              }}
 
-            lockAspectRatio
-            dragAxis="both"
-            bounds=".preview-canvas"
+              lockAspectRatio
+              dragAxis="both"
+              bounds=".preview-canvas"
             // enableResizing={{ "bottomRight": true }}
-          >
-            {props.svgContent ?
-              <div id="canvas-content-wrapper" className="canvas-content-wrapper">
-                <div id="position-label" className="svg-label" style={{left: "-55%", top: "50%", rotate: "-90deg"}}>
-                  {(contentPosition.x*canvasDimensionsRatio).toFixed(1) + ", " + (contentPosition.y*canvasDimensionsRatio).toFixed(1)}
-                </div>
-                <div id="width-label" className="svg-label" style={{top: "-10%"}}>
-                  {(contentDimensions.width*canvasDimensionsRatio).toFixed(1)}
-                </div>
-                <div id="height-label" className="svg-label" style={{right: "-55%", top: "50%", rotate: "90deg"}}>
-                  {(contentDimensions.height*canvasDimensionsRatio).toFixed(1)}
-                </div>
-                <div id="canvas-content" className="canvas-content"
-                  /*style={{ height: contentDimensions.height, width: contentDimensions.width }}*/
-                  style={{ transform: `rotate(${props.rotation}deg)` }}
-                  dangerouslySetInnerHTML={{ __html: props.svgContent }}>
-                </div>
-              </div> : null}
-          </Rnd> : null
-      }
+            >
+              {props.svgContent ?
+                <div id="canvas-content-wrapper" className="canvas-content-wrapper">
+                  <div id="position-label" className="svg-label" style={{ left: "-55%", top: "50%", rotate: "-90deg" }}>
+                    {(contentPosition.x * canvasDimensionsRatio).toFixed(1) + ", " + (contentPosition.y * canvasDimensionsRatio).toFixed(1)}
+                  </div>
+                  <div id="width-label" className="svg-label" style={{ top: "-10%" }}>
+                    {(contentDimensions.width * canvasDimensionsRatio).toFixed(1)}
+                  </div>
+                  <div id="height-label" className="svg-label" style={{ right: "-55%", top: "50%", rotate: "90deg" }}>
+                    {(contentDimensions.height * canvasDimensionsRatio).toFixed(1)}
+                  </div>
+                  <div id="canvas-content" className="canvas-content"
+                    /*style={{ height: contentDimensions.height, width: contentDimensions.width }}*/
+                    style={{ transform: `rotate(${props.rotation}deg)` }}
+                    dangerouslySetInnerHTML={{ __html: props.svgContent }}>
+                  </div>
+                </div> : null}
+            </Rnd> : null
+        }
       </div>
     </div >
   );
