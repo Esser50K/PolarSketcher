@@ -9,11 +9,10 @@ from flask import Flask, request
 from flask_cors import CORS
 from flask_sockets import Sockets
 from geventwebsocket.websocket import WebSocket
-from svgelements import Length
 from werkzeug.exceptions import BadRequest
 
 from polar_sketcher_interface import PolarSketcherInterface
-from path_generator import PathGenerator, ToolpathAlgorithm, PathsortAlgorithm
+from path_generator import PathGenerator, ToolpathAlgorithm, PathsortAlgorithm, _generate_boundary_path
 from job_manager import DrawingJobManager
 
 app = Flask(__name__)
@@ -25,6 +24,8 @@ GET = "GET"
 POST = "POST"
 DELETE = "DELETE"
 
+PLOTTER_BASE_WIDTH_MM = int(os.getenv("PLOTTER_WIDTH_MM", 30))
+PLOTTER_BASE_HEIGHT_MM = int(os.getenv("PLOTTER_HEIGHT_MM", 30))
 CANVAS_WIDTH_MM = int(os.getenv("CANVAS_WIDTH_MM", 513))
 CANVAS_HEIGHT_MM = int(os.getenv("CANVAS_HEIGHT_MM", 513))
 
@@ -84,6 +85,28 @@ def get_updates(ws: WebSocket):
     except Exception as e:
         logging.error("failed to decode message:", e)
         ws.close()
+
+
+@app.route('/draw_boundary', methods=[POST])
+def draw_boundary():
+    try:
+        params = json.loads(request.data)
+    except json.JSONDecodeError:
+        return BadRequest("could not understand request")
+
+    path_generator = PathGenerator()
+    path_generator.set_canvas_size((CANVAS_WIDTH_MM, CANVAS_HEIGHT_MM))
+    boundary = _generate_boundary_path((CANVAS_WIDTH_MM, CANVAS_HEIGHT_MM),
+                                       params["canvas_size"],
+                                       (PLOTTER_BASE_WIDTH_MM, PLOTTER_BASE_HEIGHT_MM))
+    path_generator.add_paths([boundary])
+
+    polar_sketcher = None
+    if not params["dryrun"]:
+        polar_sketcher = PolarSketcherInterface()
+
+    job_id = job_manager.start_drawing_job(path_generator, polar_sketcher)
+    return job_id
 
 
 def main():

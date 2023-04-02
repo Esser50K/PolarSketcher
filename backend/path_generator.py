@@ -1,6 +1,6 @@
 import svg_parse_utils
 from typing import List, Tuple
-from svgpathtools import Path
+from svgpathtools import Path, Line
 from enum import Enum
 from toolpath_generation.horizontal_lines import horizontal_lines
 from toolpath_generation.connecting_lines import zigzag_lines, rect_lines
@@ -55,6 +55,33 @@ def _get_path_sorting_algo_func(path_sorting_algorithm: PathsortAlgorithm):
     return path_sort_algorithms[path_sorting_algorithm]
 
 
+def _generate_boundary_path(full_canvas_size: Tuple,
+                            canvas_size: Tuple,
+                            plotter_base_size: Tuple) -> Path:
+    x_offset = full_canvas_size[0] - canvas_size[0]
+    y_offset = full_canvas_size[1] - canvas_size[1]
+
+    canvas_top_left = complex(x_offset, 0)
+    base_top_left_corner = complex(canvas_top_left.real + canvas_size[1] - plotter_base_size[1], 0)
+    base_bottom_left_corner = complex(canvas_top_left.real + canvas_size[1] - plotter_base_size[1],
+                               canvas_top_left.imag + plotter_base_size[0])
+    base_bottom_right_corner = complex(canvas_top_left.real + canvas_size[1],
+                                canvas_top_left.imag + plotter_base_size[0])
+    canvas_bottom_right = complex(canvas_top_left.real + canvas_size[1],
+                           canvas_top_left.imag + canvas_size[0])
+    canvas_bottom_left = complex(canvas_top_left.real, canvas_top_left.imag + canvas_size[0])
+
+    path = Path()
+    path.append(Line(canvas_top_left, base_top_left_corner))
+    path.append(Line(base_top_left_corner, base_bottom_left_corner))
+    path.append(Line(base_bottom_left_corner, base_bottom_right_corner))
+    path.append(Line(base_bottom_right_corner, canvas_bottom_right))
+    path.append(Line(canvas_bottom_right, canvas_bottom_left))
+    path.append(Line(canvas_bottom_left, canvas_top_left))
+
+    return path
+
+
 CLOSE_PATH_COMMAND = "CLOSE_PATH"
 PATH_END_COMMAND = "PATH_END"
 DRAWING_END_COMMAND = "DRAWING_END"
@@ -68,10 +95,10 @@ class PathGenerator:
         self.rotation = 0
         self.points_per_mm = 1
 
-        self.path_sorting_algorithm = ToolpathAlgorithm.NONE
+        self.path_sorting_algorithm = PathsortAlgorithm.NONE
         self.path_sort_start_point = complex(0, 0)
 
-        self.toolpath_generation_algorithm = PathsortAlgorithm.NONE
+        self.toolpath_generation_algorithm = ToolpathAlgorithm.NONE
         self.toolpath_n_lines = 100
         self.toolpath_angle = 0
 

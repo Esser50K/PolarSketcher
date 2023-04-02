@@ -55,6 +55,36 @@ function MainUI() {
         }
     }
 
+    const drawBoundary = async () => {
+        try {
+            const body = {
+                canvas_size: [canvasDimensions.x, canvasDimensions.y],
+                dryrun: dryrunChecked,
+            }
+
+            const resp = await fetch(
+                "http://" + document.location.hostname + ":9943/draw_boundary",
+                {
+                    method: 'POST',
+                    body: JSON.stringify(body)
+                })
+
+            if (resp.status !== 200) {
+                alert("failed to upload image: " + await resp.text())
+                return
+            }
+
+            const jobId = await resp.text()
+            setRunningJobId(jobId);
+            if (websocket) {
+                websocket.close();
+            }
+            setWebsocket(undefined);
+        } catch (e) {
+            alert("failed to upload image: " + e)
+        }
+    }
+
     const handleUpload = async () => {
         if (svgContent === "") {
             return
@@ -238,6 +268,11 @@ function MainUI() {
                     <div className="flex ml-2">
                         <button className="button-base" onClick={() => setReducedMode(!inReducedMode)}>
                             toggle reduced mode
+                        </button>
+                    </div>
+                    <div className="flex ml-2">
+                        <button className="button-base" onClick={drawBoundary}>
+                            draw boundary
                         </button>
                     </div>
                 </div>

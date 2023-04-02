@@ -18,16 +18,16 @@ def horizontal_lines(paths: List[Path],
 
     for height in sorted(height_intersections.keys()):
         path = Path()
-        curr_intersections = sorted(height_intersections[height], key=lambda x: x.real)
+        curr_intersections = sorted(height_intersections[height], key=lambda x: x.intersection_point.real)
         start = None
         for i in range(0, len(curr_intersections)):
             if i % 2 != 0:
-                path.append(Line(start, curr_intersections[i]))
+                path.append(Line(start, curr_intersections[i].intersection_point))
                 yield path
                 path = Path()
                 continue
 
-            start = curr_intersections[i]
+            start = curr_intersections[i].intersection_point
 
         if len(path._segments) > 0:
             yield path
