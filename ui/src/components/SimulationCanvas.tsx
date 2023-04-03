@@ -11,7 +11,6 @@ interface CanvasProps {
   cutright?: boolean
   points?: [number, number][]
   children?: React.ReactNode
-  inReducedMode: boolean
 }
 
 const rndStyle = {
@@ -32,10 +31,7 @@ function SimulationCanvas(props: CanvasProps) {
   const [windowResizeEvent, setWidowResizeEvent] = useState<any>();
 
   const ratioedPoint = (point: [number, number], ratio: number): [number, number] => {
-    let reducedModeDiff = 0;
-    if (props.inReducedMode) {
-      reducedModeDiff = props.fullCanvasDimensions.x - props.canvasDimensions.x;
-    }
+    const reducedModeDiff = props.fullCanvasDimensions.x - props.canvasDimensions.x;
     return [(point[0] - reducedModeDiff) * ratio, point[1] * ratio];
   }
 

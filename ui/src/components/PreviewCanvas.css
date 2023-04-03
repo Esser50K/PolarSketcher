@@ -1,7 +1,6 @@
 .canvas-container {
   border: 2px solid black;
   width: 100%;
-  height: 100%;
   position: relative;
   z-index: 10;
 }
@@ -9,7 +8,6 @@
 .preview-canvas {
   position: relative;
   width: 100%;
-  aspect-ratio: 1 / 1;
   background-color: rgba(255, 0, 0, 0.2);
 }
 
@@ -41,6 +39,7 @@
 }
 
 .canvas-limits-corner {
+  aspect-ratio: 1 / 1;
   background-color: rgba(255, 0, 0, 0.2);
   position: absolute;
   right: 0;

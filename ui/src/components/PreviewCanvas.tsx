@@ -19,7 +19,6 @@ interface CanvasProps {
   maxout?: boolean
   children?: React.ReactNode
   drawnSVGs: DrawnSVG[]
-  inReducedMode: boolean
   onPositionUpdate?: (pos: { x: number, y: number }) => void
   onResizeUpdate?: (width: number, height: number) => void
 }
@@ -44,12 +43,12 @@ function PreviewCanvas(props: CanvasProps) {
 
     if (currentSVGContent) {
       currentSVGContent.setAttribute("width", String(width) + "px");
-      currentSVGContent.setAttribute("height", String(width) + "px");
+      currentSVGContent.setAttribute("height", String(height) + "px");
       setCurrentSVGContent(currentSVGContent);
     }
 
     if (props.onResizeUpdate) {
-      props.onResizeUpdate(width, width)
+      props.onResizeUpdate(width, height)
     }
   };
 
@@ -78,10 +77,13 @@ function PreviewCanvas(props: CanvasProps) {
 
   useEffect(() => {
     const canvas = document.getElementById("canvas");
+    const widthHeightRatio = props.canvasDimensions.y / props.canvasDimensions.x;
     resize(
-      Math.min(contentDimensions.width || 0, canvas?.offsetWidth || 0),
-      Math.min(contentDimensions.width || 0, canvas?.offsetWidth || 0))
-  }, [windowResizeEvent])
+      Math.min(contentDimensions.width || 0, (canvas?.offsetWidth || 0) * widthHeightRatio),
+      Math.min(contentDimensions.width || 0, (canvas?.offsetWidth || 0) * widthHeightRatio)
+    )
+    setVirtualCanvasDimensions({ width: canvas?.offsetWidth || 0, height: (canvas?.offsetWidth || 0) * widthHeightRatio })
+  }, [windowResizeEvent, props.canvasDimensions])
 
   useEffect(() => {
     if (!props.center) {
@@ -148,11 +150,10 @@ function PreviewCanvas(props: CanvasProps) {
     }
   }, [props.svgContent])
 
+  console.info("Virtual canvas:", vituralCanvasDimensions)
+
   // calculate where to draw previously drawn SVGs
-  let reducedModeDiff = 0;
-  if (props.inReducedMode) {
-    reducedModeDiff = props.fullCanvasDimensions.x - props.canvasDimensions.x;
-  }
+  const reducedModeDiff = props.fullCanvasDimensions.x - props.canvasDimensions.x;
 
   // the side of the base is 30mm out of whatever the canvas currently is
   const widthPercentage = (30 * 100.0) / props.canvasDimensions.x;
@@ -160,13 +161,16 @@ function PreviewCanvas(props: CanvasProps) {
   return (
     <div className="canvas-container">
       <div id="canvas" className="preview-canvas"
-        style={{ backgroundColor: props.inReducedMode ? "white" : "rgba(255, 0, 0, 0.2)" }}>
+        style={{
+          backgroundColor: reducedModeDiff != 0 ? "white" : "rgba(255, 0, 0, 0.2)",
+          height: vituralCanvasDimensions.height
+        }}>
         {
-          !props.inReducedMode ?
+          !(reducedModeDiff != 0) ?
             <div id="canvas-limits-round" className="canvas-limits-round"></div> : null
         }
         <div id="canvas-limits-corner" className="canvas-limits-corner"
-          style={{ width: `${widthPercentage}%`, height: `${widthPercentage}%` }}>
+          style={{ width: `${widthPercentage}%` }}>
         </div>
         {props.drawnSVGs.map((drawnSVG: DrawnSVG, idx: number) => {
           return <div key={`drawn_svg_${idx}`} className="canvas-content"

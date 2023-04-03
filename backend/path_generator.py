@@ -59,17 +59,13 @@ def _generate_boundary_path(full_canvas_size: Tuple,
                             canvas_size: Tuple,
                             plotter_base_size: Tuple) -> Path:
     x_offset = full_canvas_size[0] - canvas_size[0]
-    y_offset = full_canvas_size[1] - canvas_size[1]
 
     canvas_top_left = complex(x_offset, 0)
-    base_top_left_corner = complex(canvas_top_left.real + canvas_size[1] - plotter_base_size[1], 0)
-    base_bottom_left_corner = complex(canvas_top_left.real + canvas_size[1] - plotter_base_size[1],
-                               canvas_top_left.imag + plotter_base_size[0])
-    base_bottom_right_corner = complex(canvas_top_left.real + canvas_size[1],
-                                canvas_top_left.imag + plotter_base_size[0])
-    canvas_bottom_right = complex(canvas_top_left.real + canvas_size[1],
-                           canvas_top_left.imag + canvas_size[0])
-    canvas_bottom_left = complex(canvas_top_left.real, canvas_top_left.imag + canvas_size[0])
+    base_top_left_corner = complex(full_canvas_size[0] - plotter_base_size[0], 0)
+    base_bottom_left_corner = complex(full_canvas_size[0] - plotter_base_size[0], plotter_base_size[1])
+    base_bottom_right_corner = complex(full_canvas_size[0], plotter_base_size[1])
+    canvas_bottom_right = complex(full_canvas_size[0], canvas_size[1])
+    canvas_bottom_left = complex(x_offset, canvas_size[1])
 
     path = Path()
     path.append(Line(canvas_top_left, base_top_left_corner))
