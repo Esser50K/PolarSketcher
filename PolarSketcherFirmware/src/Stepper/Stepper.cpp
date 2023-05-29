@@ -27,8 +27,9 @@ int Stepper::setSpeed(int speed)
         speed = maxSpeed;
     }
 
-    if (speed <= 0) {
-        speed = 1;  // avoid division by zero
+    if (speed <= 0)
+    {
+        speed = 1; // avoid division by zero
     }
 
     currentSpeed = speed;
@@ -70,13 +71,7 @@ bool Stepper::stepTowardTarget()
 
 void Stepper::singleStepTowardTarget()
 {
-    if (currentPosition < targetPosition && !goingForward){
-        goingForward = true;
-    } else if(currentPosition > targetPosition && goingForward){
-        goingForward = false;
-    }
-
-    singleStep(goingForward);
+    singleStep(currentPosition < targetPosition);
 }
 
 bool Stepper::singleStepAtSpeed(bool forward)
@@ -110,7 +105,6 @@ void Stepper::setDir(bool forward)
     digitalWrite(dirPin, forward ? HIGH : LOW);
     goingForward = forward;
 }
-
 
 /*
 void Stepper::write(int a, int b, int c, int d)

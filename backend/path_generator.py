@@ -5,15 +5,17 @@ from enum import Enum
 from toolpath_generation.horizontal_lines import horizontal_lines
 from toolpath_generation.connecting_lines import zigzag_lines, rect_lines
 from sort_paths import find_closest_path, \
-                       find_closest_path_with_endpoint, \
-                       find_closest_path_with_circular_path_check, \
-                       find_closest_path_with_radar_scan, \
-                       sort_paths
+    find_closest_path_with_endpoint, \
+    find_closest_path_with_circular_path_check, \
+    find_closest_path_with_radar_scan, \
+    sort_paths
+import time
+
 
 class ToolpathAlgorithm(Enum):
-    NONE      = "none"
-    LINES     = "lines"
-    ZIGZAG    = "zigzag"
+    NONE = "none"
+    LINES = "lines"
+    ZIGZAG = "zigzag"
     RECTLINES = "rectlines"
 
 
@@ -32,11 +34,11 @@ def _get_toolpath_algo_func(toolpath_algo: ToolpathAlgorithm):
 
 
 class PathsortAlgorithm(Enum):
-    NONE                             = "none"
-    CLOSEST_PATH                     = "closest_path"
+    NONE = "none"
+    CLOSEST_PATH = "closest_path"
     CLOSEST_PATH_WITH_REVERSED_START = "closest_path_with_reverse"
-    CLOSEST_PATH_START_ANYWHERE      = "closest_path_with_start_anywhere"
-    RADAR_SCAN                       = "radar_scan"
+    CLOSEST_PATH_START_ANYWHERE = "closest_path_with_start_anywhere"
+    RADAR_SCAN = "radar_scan"
 
 
 def _get_path_sorting_algo_func(path_sorting_algorithm: PathsortAlgorithm):
@@ -46,7 +48,7 @@ def _get_path_sorting_algo_func(path_sorting_algorithm: PathsortAlgorithm):
         PathsortAlgorithm.CLOSEST_PATH_WITH_REVERSED_START: find_closest_path_with_endpoint,
         PathsortAlgorithm.CLOSEST_PATH_START_ANYWHERE: find_closest_path_with_circular_path_check,
         PathsortAlgorithm.RADAR_SCAN: find_closest_path_with_radar_scan,
-        
+
     }
 
     if path_sorting_algorithm not in path_sort_algorithms.keys():
@@ -61,9 +63,12 @@ def _generate_boundary_path(full_canvas_size: Tuple,
     x_offset = full_canvas_size[0] - canvas_size[0]
 
     canvas_top_left = complex(x_offset, 0)
-    base_top_left_corner = complex(full_canvas_size[0] - plotter_base_size[0], 0)
-    base_bottom_left_corner = complex(full_canvas_size[0] - plotter_base_size[0], plotter_base_size[1])
-    base_bottom_right_corner = complex(full_canvas_size[0], plotter_base_size[1])
+    base_top_left_corner = complex(
+        full_canvas_size[0] - plotter_base_size[0], 0)
+    base_bottom_left_corner = complex(
+        full_canvas_size[0] - plotter_base_size[0], plotter_base_size[1])
+    base_bottom_right_corner = complex(
+        full_canvas_size[0], plotter_base_size[1])
     canvas_bottom_right = complex(full_canvas_size[0], canvas_size[1])
     canvas_bottom_left = complex(x_offset, canvas_size[1])
 
@@ -81,6 +86,8 @@ def _generate_boundary_path(full_canvas_size: Tuple,
 CLOSE_PATH_COMMAND = "CLOSE_PATH"
 PATH_END_COMMAND = "PATH_END"
 DRAWING_END_COMMAND = "DRAWING_END"
+
+
 class PathGenerator:
     def __init__(self):
         self.paths = []
@@ -148,14 +155,16 @@ class PathGenerator:
 
         paths = self.paths.copy()
         if self.toolpath_generation_algorithm is not ToolpathAlgorithm.NONE:
-            toolpath_algorithm_func = _get_toolpath_algo_func(self.toolpath_generation_algorithm)
+            toolpath_algorithm_func = _get_toolpath_algo_func(
+                self.toolpath_generation_algorithm)
             paths = list(toolpath_algorithm_func(paths,
                                                  self.canvas_size,
                                                  n_lines=self.toolpath_n_lines,
                                                  angle=self.toolpath_angle))
 
         if self.path_sorting_algorithm is not PathsortAlgorithm.NONE:
-            path_sort_algorithm = _get_path_sorting_algo_func(self.path_sorting_algorithm)
+            path_sort_algorithm = _get_path_sorting_algo_func(
+                self.path_sorting_algorithm)
             paths = sort_paths(paths=paths,
                                start_point=self.path_sort_start_point,
                                canvas_size=self.canvas_size,
@@ -201,7 +210,7 @@ class PathGenerator:
             # signal end of path
             if path.isclosed():
                 yield CLOSE_PATH_COMMAND
-            
+
             yield PATH_END_COMMAND
 
     def __get_points(self,
@@ -216,7 +225,7 @@ class PathGenerator:
         except ZeroDivisionError:
             point = path.point(0)
             yield ((point.real * render_scale) + render_translate[0],
-                (point.imag * render_scale) + render_translate[1])
+                   (point.imag * render_scale) + render_translate[1])
             return
         except Exception as e:
             print("path", len(path))
@@ -236,4 +245,4 @@ class PathGenerator:
             point = complex(point.real, point.imag)
             scaled_point = point * render_scale
             yield (scaled_point.real + render_translate[0],
-                scaled_point.imag + render_translate[1])
+                   scaled_point.imag + render_translate[1])

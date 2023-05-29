@@ -18,7 +18,8 @@ class DrawingJobWebConnection:
             self.event.set()
             self.ws.close()
         except Exception as e:
-            print("failed closing ws from %s:" % self.unique_origin, type(e), e)
+            print("failed closing ws from %s:" %
+                  self.unique_origin, type(e), e)
             self.event.set()
 
 
@@ -43,7 +44,6 @@ class DrawingJob:
             self.polar_sketcher.set_mode(Mode.DRAW)
         self.worker.start()
 
-
     def add_web_connection(self, ws: WebSocket, event: Event):
         webconn = DrawingJobWebConnection(ws, event)
         self.connected_ws[webconn.unique_origin] = webconn
@@ -56,6 +56,8 @@ class DrawingJob:
     def run(self):
         position_sent_counter = 0
         first_point = None
+        # give a chance for the main thread to return the job_id to the frontend
+        time.sleep(.01)
         for point in self.path_generator.generate_points():
             if self._stop:
                 break
@@ -63,14 +65,14 @@ class DrawingJob:
             if point == CLOSE_PATH_COMMAND:
                 if self.polar_sketcher is not None:
                     amplitude_pos, angle_pos = self.polar_sketcher.convert_to_stepper_positions(
-                                                                            self.path_generator.canvas_size,
-                                                                            first_point)
+                        self.path_generator.canvas_size,
+                        first_point)
                     self.polar_sketcher.add_position(
                         amplitude_pos,
                         angle_pos,
                         pen=30,
-                        amplitude_velocity=5000,
-                        angle_velocity=1500
+                        amplitude_velocity=4000,
+                        angle_velocity=1000
                     )
 
             elif point == PATH_END_COMMAND:
@@ -79,30 +81,33 @@ class DrawingJob:
                 first_point = None
 
                 # update all web connections
-                self._broadcast(json.dumps({
-                    "job_id": str(self.job_id),
-                    "type": "update",
-                    "payload": self.drawn_paths
-                }))
+                # self._broadcast(json.dumps({
+                #     "job_id": str(self.job_id),
+                #     "type": "update",
+                #     "payload": self.drawn_paths
+                # }))
             else:
                 self.current_path.append(point)
                 if self.polar_sketcher is not None:
                     # move from origin being in the top left to polar sketcher being on top right
-                    point = (self.path_generator.canvas_size[0]-point[0], point[1])
+                    point = (
+                        self.path_generator.canvas_size[0]-point[0], point[1])
                     amplitude_pos, angle_pos = self.polar_sketcher.convert_to_stepper_positions(
-                                                                            self.path_generator.canvas_size,
-                                                                            point)
+                        self.path_generator.canvas_size,
+                        point)
                     pen_position = 0 if first_point is None else 30
 
+                    # print(self.polar_sketcher.update_status())
                     self.polar_sketcher.add_position(
                         amplitude_pos,
                         angle_pos,
                         pen=pen_position,
-                        amplitude_velocity=5000,
-                        angle_velocity=1500
+                        amplitude_velocity=2000,
+                        angle_velocity=500
                     )
                     position_sent_counter += 1
                     print("SENT POSITIONS", position_sent_counter)
+                    print("POSITION:", amplitude_pos, angle_pos)
 
                 if first_point is None:
                     first_point = point
@@ -115,8 +120,13 @@ class DrawingJob:
                     continue
                 break
             self.polar_sketcher.set_mode(Mode.HOME)
+        self._broadcast(json.dumps({
+            "job_id": str(self.job_id),
+            "type": "update",
+            "payload": self.drawn_paths
+        }))
         self._close_all_webconnections()
-                
+
     def _close_all_webconnections(self):
         for _, webconn in self.connected_ws.items():
             webconn.close()
@@ -139,7 +149,6 @@ class DrawingJob:
         self._stop = True
         if wait and self.worker.is_alive():
             self.worker.join()
-
 
 
 class DrawingJobManager:

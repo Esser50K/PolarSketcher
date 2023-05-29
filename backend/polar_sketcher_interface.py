@@ -102,13 +102,12 @@ class Status:
 
 
 class PolarSketcherInterface:
-    def __init__(self, port='/dev/cu.usbserial-0001', baud_rate=921600):
+    def __init__(self, port='/dev/cu.usbserial-0001', baud_rate=115200):
         self.port = port
         self.baud_rate = baud_rate
         self.serial = serial.Serial(port, baud_rate)
         self.status = Status()
         time.sleep(2)
-        
 
     def __encode_int(self, val: int):
         return val.to_bytes(4, 'little', signed=True)
@@ -131,17 +130,17 @@ class PolarSketcherInterface:
 
         # TODO read calibration from a file or something
         # travelable distance steps
-        self.serial.write(self.__encode_int(37418))
+        self.serial.write(self.__encode_int(37806))
         # steps per mm
-        self.serial.write(self.__encode_float(80.3))
+        self.serial.write(self.__encode_float(79.42))
         # minAmplitudePos
-        self.serial.write(self.__encode_int(2960))
+        self.serial.write(self.__encode_int(2923))
         # maxAmplituePos
-        self.serial.write(self.__encode_int(40379))
+        self.serial.write(self.__encode_int(40730))
         # maxAnglePos
-        self.serial.write(self.__encode_int(14487))
+        self.serial.write(self.__encode_int(14551))
         # maxEncoderCount
-        self.serial.write(self.__encode_int(1233))
+        self.serial.write(self.__encode_int(1230))
         return self.update_status()
 
     def add_position(self, amplitude, angle, pen, amplitude_velocity, angle_velocity):
@@ -176,7 +175,8 @@ class PolarSketcherInterface:
         # canvas_amplitude = polar_canvas[0]
         canvas_amplitude = canvas_size[0]
 
-        amplitudeSteps = mapMinMax(amplitude, 0, canvas_amplitude, 0, self.status.maxAmplituePos)
+        amplitudeSteps = mapMinMax(
+            amplitude, 0, canvas_amplitude, 0, self.status.maxAmplituePos)
         angleSteps = mapMinMax(angle, 0, 90, 0, self.status.maxAnglePos)
         return int(amplitudeSteps), int(angleSteps)
 

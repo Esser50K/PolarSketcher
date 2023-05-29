@@ -155,8 +155,8 @@ function PreviewCanvas(props: CanvasProps) {
   // calculate where to draw previously drawn SVGs
   const reducedModeDiff = props.fullCanvasDimensions.x - props.canvasDimensions.x;
 
-  // the side of the base is 30mm out of whatever the canvas currently is
-  const widthPercentage = (30 * 100.0) / props.canvasDimensions.x;
+  // the side of the base is 35mm out of whatever the canvas currently is
+  const widthPercentage = (35 * 100.0) / props.canvasDimensions.x;
   const canvasDimensionsRatio = props.canvasDimensions.x / vituralCanvasDimensions.width;
   return (
     <div className="canvas-container">

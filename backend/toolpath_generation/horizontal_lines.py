@@ -1,7 +1,5 @@
 from typing import List, Tuple
-
 from svgpathtools import Path, Line
-
 from .util import get_quadtree_height_intersections, get_brute_force_height_intersections
 
 

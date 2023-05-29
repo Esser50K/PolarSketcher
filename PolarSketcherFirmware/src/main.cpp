@@ -20,7 +20,7 @@ const int encoderPhaseBPin = 26;
 
 const int penServoPin = 13;
 
-const long BAUD_RATE = 921600;
+const long BAUD_RATE = 115200;
 
 // physical measurements
 const int railLengthMm = 585;
@@ -51,52 +51,67 @@ Servo penServo;
 
 // modes
 int currentMode = 0;
-enum mode {
+enum mode
+{
   idle,
   homing,
   autoCalibration,
   drawing
 };
 
-bool home() {
+bool digitalReadCheck(int pin, int expected, int nChecks)
+{
+  int checks = 0;
+  while (digitalRead(pin) == expected && checks < nChecks)
+  {
+    checks++;
+  }
+
+  // if it looped through it means that the result is consistently what we expect
+  return checks == nChecks;
+}
+
+bool home()
+{
   penServo.write(0);
 
   bool zeroAmplitudePressed = digitalRead(zeroAmplitudePin) == 1 ? false : true;
   bool zeroAnglePressed = digitalRead(zeroAnglePin) == 1 ? false : true;
 
-  if(zeroAmplitudePressed) {
+  if (zeroAmplitudePressed)
+  {
     amplitudeStepper->setPosition(minAmplitudePos);
     amplitudeStepper->setTargetPosition(minAmplitudePos);
-  } else {
+  }
+  else
+  {
     amplitudeStepper->singleStepAtSpeed(false);
   }
 
-  if(zeroAnglePressed) {
+  if (zeroAnglePressed)
+  {
     angleStepper->setPosition(0);
     angleStepper->setTargetPosition(0);
 
     // also reset encoder
     angleEncoder.setCount(0);
-  } else {
+  }
+  else
+  {
     angleStepper->singleStepAtSpeed(false);
   }
 
   // perform extra checks because of flaky reads
-  int nChecks = 0;
   int necessaryChecks = 5;
-  while(zeroAmplitudePressed && zeroAnglePressed && nChecks < necessaryChecks){
-    zeroAmplitudePressed = digitalRead(zeroAmplitudePin) == 1 ? false : true;
-    zeroAnglePressed = digitalRead(zeroAnglePin) == 1 ? false : true;
-    nChecks++;
-  }
-
-  return zeroAmplitudePressed && zeroAnglePressed;
+  return digitalReadCheck(zeroAmplitudePin, 0, necessaryChecks) && digitalReadCheck(zeroAnglePin, 0, necessaryChecks);
 }
 
 bool calibrated = false;
 bool calibrating = false;
-bool autoCalibrate() {
-  if(calibrated){
+bool autoCalibrate()
+{
+  if (calibrated)
+  {
     calibrated = false;
     travelableDistanceSteps = 0;
     stepsPerMm = 0;
@@ -106,25 +121,29 @@ bool autoCalibrate() {
     maxEncoderCount = 0;
   }
 
-  if(!calibrated && !calibrating && home()) {
+  if (!calibrated && !calibrating && home())
+  {
     calibrating = true;
   }
 
-  if(!calibrating){
+  if (!calibrating)
+  {
     return false;
   }
 
   bool maxAmplitudePressed = digitalRead(maxAmplitudePin) == 1 ? false : true;
   bool maxAnglePressed = digitalRead(maxAnglePin) == 1 ? false : true;
 
-  if(!maxAmplitudePressed)
+  if (!maxAmplitudePressed)
     amplitudeStepper->singleStepAtSpeed(true);
 
-  if(!maxAnglePressed)
+  if (!maxAnglePressed)
     angleStepper->singleStepAtSpeed(true);
 
   // also check if stepsPerMm is 0, otherwise it has been calibrated already
-  if(maxAmplitudePressed && stepsPerMm == 0) {
+  // do multi check here too, first check is for fastfail
+  if (maxAmplitudePressed && digitalReadCheck(maxAmplitudePin, 0, 4) && stepsPerMm == 0)
+  {
     travelableDistanceSteps = amplitudeStepper->getPosition();
     stepsPerMm = float(travelableDistanceSteps) / float(travelableDistanceMm);
     minAmplitudePos = long(offsetMm) * long(stepsPerMm);
@@ -134,7 +153,8 @@ bool autoCalibrate() {
     amplitudeStepper->setTargetPosition(maxAmplituePos);
   }
 
-  if(maxAnglePressed) {
+  if (maxAnglePressed && digitalReadCheck(maxAnglePin, 0, 4))
+  {
     maxAnglePos = angleStepper->getPosition();
     angleStepper->setPosition(maxAnglePos);
     angleStepper->setTargetPosition(maxAnglePos);
@@ -142,7 +162,9 @@ bool autoCalibrate() {
     maxEncoderCount = angleEncoder.getCount();
   }
 
-  if(maxAmplitudePressed && maxAnglePressed){
+  if ((maxAmplitudePressed && maxAnglePressed) &&
+      (digitalReadCheck(maxAnglePin, 0, 4) && digitalReadCheck(maxAmplitudePin, 0, 4)))
+  {
     maxAmplituePos = amplitudeStepper->getPosition();
     maxAnglePos = angleStepper->getPosition();
     maxEncoderCount = angleEncoder.getCount();
@@ -154,16 +176,18 @@ bool autoCalibrate() {
   return false;
 }
 
-int encoderPosToAnglePos() {
+long encoderPosToAnglePos()
+{
   return map(angleEncoder.getCount(), 0, maxEncoderCount, 0, maxAnglePos);
 }
 
-struct position {
-  int amplitudePosition;
-  int anglePosition;
-  int penPosition;
-  int amplitudeVelocity;
-  int angleVelocity;
+struct position
+{
+  long amplitudePosition;
+  long anglePosition;
+  long penPosition;
+  long amplitudeVelocity;
+  long angleVelocity;
 };
 
 const int futurePositionsLength = 100;
@@ -175,25 +199,32 @@ position futurePositions[futurePositionsLength];
 int stepsSinceCorrection = 0;
 int previousMove = 0;
 const int stepsUntilCorrection = 100;
-bool draw() {
+const float correctionSmoothness = 8;
+bool draw()
+{
   // step toward target
   if (amplitudeStepper->getPosition() != amplitudeStepper->getTargetPosition() ||
-      angleStepper->getPosition() != angleStepper->getTargetPosition()){
+      angleStepper->getPosition() != angleStepper->getTargetPosition())
+  {
     amplitudeStepper->stepTowardTarget();
     angleStepper->stepTowardTarget();
-  } else {
+  }
+  else
+  {
     // check if we have a new position to go to
-    int potentialNextPositionToGo = (nextPositionToGo+1) % futurePositionsLength;
-    if(potentialNextPositionToGo == nextPositionToPlace){
+    int potentialNextPositionToGo = (nextPositionToGo + 1) % futurePositionsLength;
+    if (potentialNextPositionToGo == nextPositionToPlace)
+    {
       return false;
     }
 
-    // correct angle stepper position
     stepsSinceCorrection += previousMove;
-    if((stepsSinceCorrection > stepsUntilCorrection)) {
-      int encoderAnglePos = encoderPosToAnglePos();
-      angleStepper->setPosition(encoderAnglePos);
-      stepsSinceCorrection = 0;
+    if (stepsSinceCorrection > stepsUntilCorrection)
+    {
+      long encoderAnglePos = encoderPosToAnglePos();
+      long positionDiff = encoderAnglePos - angleStepper->getPosition();
+      long correction = positionDiff / correctionSmoothness;
+      angleStepper->setPosition(angleStepper->getPosition() + correction);
     }
 
     // set new target
@@ -203,14 +234,15 @@ bool draw() {
     angleStepper->setTargetPosition(nextPosition.anglePosition);
     amplitudeStepper->setSpeed(nextPosition.amplitudeVelocity);
     angleStepper->setSpeed(nextPosition.angleVelocity);
-    
+
     // count angle steps
-    previousMove = abs(angleStepper->getPosition()-angleStepper->getTargetPosition());
+    previousMove = abs(angleStepper->getPosition() - angleStepper->getTargetPosition());
 
     // put pen in position
     // the +1 is just because the .read()
     // returns the last value we wrote -1 ¯\_(ツ)_/¯
-    if(penServo.read()+1 != nextPosition.penPosition){
+    if (penServo.read() + 1 != nextPosition.penPosition)
+    {
       penServo.write(nextPosition.penPosition);
       // without this delay the plotter starts
       // moving before the pen has reached the bottom
@@ -221,7 +253,8 @@ bool draw() {
   return false;
 }
 
-enum command {
+enum command
+{
   none,
   getStatus,
   setMode,
@@ -229,28 +262,33 @@ enum command {
   addPosition,
 };
 
-int readInt() {
+int readInt()
+{
   return Serial.read() + (Serial.read() << 8) + (Serial.read() << 16) + (Serial.read() << 24);
 }
 
-float readFloat() {
+float readFloat()
+{
   float f;
-  Serial.readBytes((char*)&f, 4);
+  Serial.readBytes((char *)&f, 4);
   return f;
 }
 
 int commandBufferIdx = 0;
-int commandBuffer[50]; 
-bool parseCommand(int cmd){
-  switch (cmd) {
+int commandBuffer[50];
+bool parseCommand(int cmd)
+{
+  switch (cmd)
+  {
   case setMode:
-    if(Serial.available() < sizeof(int)) {
+    if (Serial.available() < sizeof(int))
+    {
       return false;
     }
 
     commandBuffer[commandBufferIdx] = readInt();
     commandBufferIdx++;
-    currentMode = commandBuffer[commandBufferIdx-1];
+    currentMode = commandBuffer[commandBufferIdx - 1];
     return true;
   case getStatus:
     Serial.println(currentMode);
@@ -282,7 +320,8 @@ bool parseCommand(int cmd){
     return true;
   case calibrate:
     // check if all the values are in the buffer
-    if(Serial.available() < sizeof(int) * 6) {
+    if (Serial.available() < sizeof(int) * 6)
+    {
       return false;
     }
 
@@ -297,7 +336,8 @@ bool parseCommand(int cmd){
     calibrated = true;
     return true;
   case addPosition:
-    if(Serial.available() < sizeof(int)) {
+    if (Serial.available() < sizeof(int))
+    {
       return false;
     }
 
@@ -308,14 +348,16 @@ bool parseCommand(int cmd){
     // the serial input buffer and make commands be misinterpreted
     // for now this is fixed on the sender side by getting the status
     // after writing a new position and holding on for new positions
-    if(nextPositionToGo == nextPositionToPlace){
+    if (nextPositionToGo == nextPositionToPlace)
+    {
       return false;
     }
 
     // read parts of position until we have all the data
     commandBuffer[commandBufferIdx] = readInt();
     commandBufferIdx++;
-    if(commandBufferIdx < 5){
+    if (commandBufferIdx < 5)
+    {
       return false;
     }
 
@@ -327,8 +369,8 @@ bool parseCommand(int cmd){
     p.angleVelocity = commandBuffer[4];
 
     futurePositions[nextPositionToPlace] = p;
-    nextPositionToPlace = (nextPositionToPlace+1) % futurePositionsLength;
-    Serial.write(1);  // ack position added
+    nextPositionToPlace = (nextPositionToPlace + 1) % futurePositionsLength;
+    Serial.write(1); // ack position added
     return true;
   default:
     return true;
@@ -339,16 +381,21 @@ bool parseCommand(int cmd){
 }
 
 int currentCommand = 0;
-void readInput() {
+void readInput()
+{
   // read command type
-  if(currentCommand == 0){
-    if(Serial.available() < sizeof(int)){
+  if (currentCommand == 0)
+  {
+    if (Serial.available() < sizeof(int))
+    {
       return;
     }
 
     currentCommand = readInt();
     // let the command be read in the next loop iteration
-  } else if(parseCommand(currentCommand)) {
+  }
+  else if (parseCommand(currentCommand))
+  {
     commandBufferIdx = 0;
     currentCommand = 0;
   }
@@ -374,14 +421,14 @@ void setup()
   pinMode(maxAnglePin, INPUT);
 
   // enable and create steppers
-  digitalWrite(enableStepper, LOW);  // enable is LOW for a4988 driver
+  digitalWrite(enableStepper, LOW); // enable is LOW for a4988 driver
   amplitudeStepper = new Stepper(amplitudeStepPin, amplitudeDirPin);
   angleStepper = new Stepper(angleStepPin, angleDirPin);
 
   // configure encoder
-  ESP32Encoder::useInternalWeakPullResistors=UP;
-	angleEncoder.attachHalfQuad(encoderPhaseAPin, encoderPhaseBPin);
-	angleEncoder.setCount(0);
+  ESP32Encoder::useInternalWeakPullResistors = UP;
+  angleEncoder.attachHalfQuad(encoderPhaseAPin, encoderPhaseBPin);
+  angleEncoder.setCount(0);
 
   // attach servo
   penServo.attach(penServoPin);
@@ -392,26 +439,27 @@ void loop()
 {
   readInput();
 
-  switch (currentMode) {
+  switch (currentMode)
+  {
   case idle:
     break;
   case homing:
     amplitudeStepper->setSpeed(3500);
     angleStepper->setSpeed(1200);
-    if(home())
+    if (home())
       currentMode = idle;
     break;
   case autoCalibration:
-    if(!calibrating)
+    if (!calibrating)
       stepsPerMm = 0;
     amplitudeStepper->setSpeed(3500);
     angleStepper->setSpeed(1200);
-    if(autoCalibrate())
+    if (autoCalibrate())
       currentMode = homing;
 
     break;
   case drawing:
-    if(draw())
+    if (draw())
       currentMode = idle;
     break;
   default:
