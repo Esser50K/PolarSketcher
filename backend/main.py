@@ -48,20 +48,23 @@ def upload():
     path_generator.set_render_size(params["size"])
     path_generator.set_rotation(params["rotation"])
     try:
-        toolpath_algorithm = ToolpathAlgorithm(params["toolpath_config"]["algorithm"])
+        toolpath_algorithm = ToolpathAlgorithm(
+            params["toolpath_config"]["algorithm"])
         path_generator.set_toolpath_algorithm(toolpath_algorithm)
-        path_generator.set_toolpath_line_number(params["toolpath_config"]["n_lines"])
+        path_generator.set_toolpath_line_number(
+            params["toolpath_config"]["line_step"])
         path_generator.set_toolpath_angle(params["toolpath_config"]["angle"])
     except Exception as e:
         logging.error("failed to configure toolpath algorithm:", e)
 
     try:
-        pathsort_algorithm = PathsortAlgorithm(params["pathsort_config"]["algorithm"])
+        pathsort_algorithm = PathsortAlgorithm(
+            params["pathsort_config"]["algorithm"])
         path_generator.set_pathsort_algorithm(pathsort_algorithm)
-        path_generator.set_pathsort_start_point(complex(params["pathsort_config"]["x"], params["pathsort_config"]["y"]))
+        path_generator.set_pathsort_start_point(
+            complex(params["pathsort_config"]["x"], params["pathsort_config"]["y"]))
     except Exception as e:
         logging.error("failed to configure pathsort algorithm:", e)
-
 
     polar_sketcher = None
     if not params["dryrun"]:
@@ -116,7 +119,8 @@ def main():
     monkey.patch_all()
 
     parser = argparse.ArgumentParser(description='Polar Sketcher Server')
-    parser.add_argument("-d", "--dry-run", type=bool, default=False, help="use dry run drawer")
+    parser.add_argument("-d", "--dry-run", type=bool,
+                        default=False, help="use dry run drawer")
     parser.add_argument("-s", "--canvas-size",
                         type=tuple,
                         help="use dry run drawer",
@@ -130,7 +134,8 @@ def main():
 
         print("Starting WebServer...")
         # waitress.serve(sockets, host='0.0.0.0', port=90143)  # port -> polar
-        server = pywsgi.WSGIServer(('', 9943), app, handler_class=WebSocketHandler)
+        server = pywsgi.WSGIServer(
+            ('', 9943), app, handler_class=WebSocketHandler)
         server.serve_forever()
 
     except KeyboardInterrupt:

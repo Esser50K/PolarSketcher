@@ -7,21 +7,24 @@ from path_quadtree import QuadTree, Point, Rect, SegmentIntersection, PathSegmen
 
 def get_quadtree_height_intersections(paths: List[Path],
                                       canvas_dimensions: Tuple[float, float],
-                                      n_lines=100,
+                                      line_step=10,
                                       angle=0) -> Dict[float, List[SegmentIntersection]]:
     # exaggerating dimensions of quadtree in order to catch rotated paths that end up outside the canvas
     quadtree = QuadTree(
         Rect(
-            Point(complex(-canvas_dimensions[0] * 2, -canvas_dimensions[1] * 2)),
+            Point(complex(-canvas_dimensions[0]
+                  * 2, -canvas_dimensions[1] * 2)),
             canvas_dimensions[0] * 4, canvas_dimensions[1] * 4),
         capacity=20)
 
     canvas_width, canvas_height = canvas_dimensions
-    line_step = int((canvas_height / n_lines) + .5)
+    # line_step = int((canvas_height / n_lines) + .5)
     for path in paths:
-        quadtree.insert_path(path.rotated(angle, complex(canvas_width / 2, canvas_height / 2)))
+        quadtree.insert_path(path.rotated(
+            angle, complex(canvas_width / 2, canvas_height / 2)))
 
-    heights = list(range(-int(canvas_height) * 2, int(canvas_height) * 2, line_step))
+    heights = list(range(-int(canvas_height) * 2,
+                   int(canvas_height) * 2, line_step))
     lines = {height: Path(Line(complex(-canvas_width, height), complex(canvas_width * 2, height))) for height in
              heights}
     height_intersections = {height: [] for height in heights}
@@ -37,13 +40,15 @@ def get_quadtree_height_intersections(paths: List[Path],
 
 def get_brute_force_height_intersections(paths: List[Path],
                                          canvas_dimensions: Tuple[int, int],
-                                         n_lines=100,
+                                         line_step=10,
                                          angle=0) -> Dict[float, List[SegmentIntersection]]:
     canvas_width, canvas_height = canvas_dimensions
-    line_step = int((canvas_height / n_lines) + .5)
-    paths = [path.rotated(angle, complex(canvas_width / 2, canvas_height / 2)) for path in paths]
+    # line_step = int((canvas_height / n_lines) + .5)
+    paths = [path.rotated(angle, complex(
+        canvas_width / 2, canvas_height / 2)) for path in paths]
 
-    heights = list(range(-int(canvas_height) * 2, int(canvas_height) * 2, line_step))
+    heights = list(range(-int(canvas_height) * 2,
+                   int(canvas_height) * 2, line_step))
     lines = {height: Path(Line(complex(-canvas_width, height), complex(canvas_width * 2, height))) for height in
              heights}
     height_intersections = {height: [] for height in heights}

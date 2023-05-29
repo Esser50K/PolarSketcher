@@ -57,7 +57,7 @@ function MainUI() {
 
     // toolpath algorithm config
     const [toolpathAlgorithm, setToolpathAlgorithm] = useState("none");
-    const [nToolpathLines, setNToolpathLines] = useState(100);
+    const [lineStep, setLineStep] = useState(10);
     const [toolpathAngle, setToolpathAngle] = useState(0);
 
     // toolpath algorithm config
@@ -133,7 +133,7 @@ function MainUI() {
                 rotation: rotation,
                 toolpath_config: {
                     algorithm: toolpathAlgorithm,
-                    n_lines: nToolpathLines,
+                    line_step: lineStep,
                     angle: toolpathAngle,
                 },
                 pathsort_config: {
@@ -337,7 +337,7 @@ function MainUI() {
                         ></Dropdown>
                     </div>
                     <div className="ml-5 flex">
-                        <NumberInput title="number of Lines" onValueChange={(val) => { setNToolpathLines(parseInt(val)) }}></NumberInput>
+                        <NumberInput title="line step" default={10} onValueChange={(val) => { setLineStep(parseInt(val)) }}></NumberInput>
                     </div>
                     <div className="ml-5 flex">
                         <RangeInput title="angle" max={360} onValueChange={(val) => { setToolpathAngle(parseInt(val)) }}></RangeInput>

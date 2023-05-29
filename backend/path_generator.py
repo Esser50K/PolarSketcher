@@ -102,7 +102,7 @@ class PathGenerator:
         self.path_sort_start_point = complex(0, 0)
 
         self.toolpath_generation_algorithm = ToolpathAlgorithm.NONE
-        self.toolpath_n_lines = 100
+        self.toolpath_line_step = 10
         self.toolpath_angle = 0
 
     def load_svg(self, svg: str):
@@ -140,8 +140,8 @@ class PathGenerator:
     def set_toolpath_algorithm(self, toolpath_generation_algorithm: ToolpathAlgorithm):
         self.toolpath_generation_algorithm = toolpath_generation_algorithm
 
-    def set_toolpath_line_number(self, n_lines: int):
-        self.toolpath_n_lines = n_lines
+    def set_toolpath_line_number(self, line_step: int):
+        self.toolpath_line_step = line_step
 
     def set_toolpath_angle(self, angle: int):
         self.toolpath_angle = angle
@@ -159,7 +159,7 @@ class PathGenerator:
                 self.toolpath_generation_algorithm)
             paths = list(toolpath_algorithm_func(paths,
                                                  self.canvas_size,
-                                                 n_lines=self.toolpath_n_lines,
+                                                 line_step=self.toolpath_line_step,
                                                  angle=self.toolpath_angle))
 
         if self.path_sorting_algorithm is not PathsortAlgorithm.NONE:

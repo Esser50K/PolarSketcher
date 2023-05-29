@@ -50,7 +50,8 @@ def _get_left_distance(path_in_construction: PathInConstruction,
 
 
 def _get_closest_intersection_pair(path_in_construction: PathInConstruction,
-                                   intersection_pairs: List[Tuple[SegmentIntersection, SegmentIntersection]]
+                                   intersection_pairs: List[Tuple[SegmentIntersection,
+                                                                  SegmentIntersection]]
                                    ) -> Tuple[Tuple[SegmentIntersection, SegmentIntersection], int, float]:
     closest_intersection_pair_idx = -1
     closest_intersection_pair = tuple()
@@ -59,18 +60,22 @@ def _get_closest_intersection_pair(path_in_construction: PathInConstruction,
         get_dist_func = _get_right_distance if path_in_construction.direction_right else _get_left_distance
 
         if left_intersection.segment.original_path == path_in_construction.path_to_follow:
-            distance_to_left_intersection = get_dist_func(path_in_construction, left_intersection)
+            distance_to_left_intersection = get_dist_func(
+                path_in_construction, left_intersection)
 
             if distance_to_left_intersection < distance_to_closest_intersection:
                 distance_to_closest_intersection = distance_to_left_intersection
-                closest_intersection_pair = (left_intersection, right_intersection)
+                closest_intersection_pair = (
+                    left_intersection, right_intersection)
                 closest_intersection_pair_idx = idx
 
         if right_intersection.segment.original_path == path_in_construction.path_to_follow:
-            distance_to_right_intersection = get_dist_func(path_in_construction, right_intersection)
+            distance_to_right_intersection = get_dist_func(
+                path_in_construction, right_intersection)
             if distance_to_right_intersection < distance_to_closest_intersection:
                 distance_to_closest_intersection = distance_to_right_intersection
-                closest_intersection_pair = (left_intersection, right_intersection)
+                closest_intersection_pair = (
+                    left_intersection, right_intersection)
                 closest_intersection_pair_idx = idx
 
     return closest_intersection_pair, closest_intersection_pair_idx, distance_to_closest_intersection
@@ -101,14 +106,16 @@ def _continue_paths_in_construction(paths_in_construction: List[PathInConstructi
     finished_paths_in_construction = []
     for path_in_construction in paths_in_construction:
         closest_continuation_pair, intersection_pair_idx, distance = \
-            _get_closest_intersection_pair(path_in_construction, intersection_pairs)
+            _get_closest_intersection_pair(
+                path_in_construction, intersection_pairs)
 
         # if a continuation for a path in construction has been found
         # that intersection pair needs to be removed from the candidates
         # for the other paths in construction
         if intersection_pair_idx != -1:
             # map the path in construction with its closest continuation intersection pair
-            intersection_pair_to_paths[intersection_pair_idx].append((path_in_construction, distance))
+            intersection_pair_to_paths[intersection_pair_idx].append(
+                (path_in_construction, distance))
 
         # if nothing has been found this means that the path is done and can be yielded
         else:
@@ -118,11 +125,13 @@ def _continue_paths_in_construction(paths_in_construction: List[PathInConstructi
     # dispute which one will continue and which will have to be finished (currently the closest path wins)
     intersection_pairs_to_remove = []
     for intersection_pair_idx, path_in_construction_list in intersection_pair_to_paths.items():
-        path_to_continue, finished_paths = _dispute_continuation(path_in_construction_list)
+        path_to_continue, finished_paths = _dispute_continuation(
+            path_in_construction_list)
         closest_continuation_pair = intersection_pairs[intersection_pair_idx]
 
         finished_paths_in_construction.extend(finished_paths)
-        intersection_pairs_to_remove.append(intersection_pairs[intersection_pair_idx])
+        intersection_pairs_to_remove.append(
+            intersection_pairs[intersection_pair_idx])
 
         connection_intersection = closest_continuation_pair[1] \
             if path_to_continue.direction_right else closest_continuation_pair[0]
@@ -145,18 +154,19 @@ def _continue_paths_in_construction(paths_in_construction: List[PathInConstructi
 
 def connecting_lines(paths: list[Path],
                      canvas_dimensions: Tuple[int, int],
-                     n_lines=100, angle=0,
+                     line_step=10, angle=0,
                      use_quadtree=True,
                      zigzag=True):
     get_height_intersection_func = get_quadtree_height_intersections \
         if use_quadtree else get_brute_force_height_intersections
     height_intersections = get_height_intersection_func(paths,
                                                         canvas_dimensions,
-                                                        n_lines, angle)
+                                                        line_step, angle)
 
     paths_in_construction = []
     for height in sorted(height_intersections.keys()):
-        sorted_height_intersections = sorted(height_intersections[height], key=lambda x: x.intersection_point.real)
+        sorted_height_intersections = sorted(
+            height_intersections[height], key=lambda x: x.intersection_point.real)
 
         # HACK: duplicate initial intersection if it hits a vertice
         if len(sorted_height_intersections) == 1:
@@ -165,7 +175,8 @@ def connecting_lines(paths: list[Path],
         intersection_pairs = []
         for i in range(0, len(sorted_height_intersections), 2):
             try:
-                intersection_pairs.append((sorted_height_intersections[i], sorted_height_intersections[i + 1]))
+                intersection_pairs.append(
+                    (sorted_height_intersections[i], sorted_height_intersections[i + 1]))
             except Exception as e:
                 print("error while creating intersection pairs:", e)
                 print(i, len(sorted_height_intersections))
@@ -180,7 +191,8 @@ def connecting_lines(paths: list[Path],
             paths_in_construction.remove(path_in_construction)
 
         for left, right in remaining_intersection_pairs:
-            new_path = Path(Line(left.intersection_point, right.intersection_point))
+            new_path = Path(Line(left.intersection_point,
+                            right.intersection_point))
             paths_in_construction.append(PathInConstruction(
                 new_path,
                 right.segment.original_path,
@@ -195,15 +207,15 @@ def connecting_lines(paths: list[Path],
 
 def rect_lines(paths: list[Path],
                canvas_dimensions: Tuple[int, int],
-               n_lines=100,
+               line_step=10,
                angle=0,
                use_quadtree=True):
-    return connecting_lines(paths, canvas_dimensions, n_lines, angle, use_quadtree, zigzag=False)
+    return connecting_lines(paths, canvas_dimensions, line_step, angle, use_quadtree, zigzag=False)
 
 
 def zigzag_lines(paths: list[Path],
                  canvas_dimensions: Tuple[int, int],
-                 n_lines=100,
+                 line_step=10,
                  angle=0,
                  use_quadtree=True):
-    return connecting_lines(paths, canvas_dimensions, n_lines, angle, use_quadtree, zigzag=True)
+    return connecting_lines(paths, canvas_dimensions, line_step, angle, use_quadtree, zigzag=True)
