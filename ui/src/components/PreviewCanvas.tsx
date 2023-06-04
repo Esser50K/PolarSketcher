@@ -162,15 +162,24 @@ function PreviewCanvas(props: CanvasProps) {
     <div className="canvas-container">
       <div id="canvas" className="preview-canvas"
         style={{
-          backgroundColor: reducedModeDiff != 0 ? "white" : "rgba(255, 0, 0, 0.2)",
           height: vituralCanvasDimensions.height
         }}>
-        {
-          !(reducedModeDiff != 0) ?
-            <div id="canvas-limits-round" className="canvas-limits-round"></div> : null
-        }
-        <div id="canvas-limits-corner" className="canvas-limits-corner"
-          style={{ width: `${widthPercentage}%` }}>
+        <div className="canvas-limits-container">
+          <div id="canvas-limits-round" className="canvas-limits-round"
+            style={{
+              width: props.fullCanvasDimensions.x / canvasDimensionsRatio,
+              height: props.fullCanvasDimensions.x / canvasDimensionsRatio,
+              right: `${(reducedModeDiff * 100) / props.canvasDimensions.x}px`,
+            }}
+          ></div>
+          <div id="canvas-limits-rest" className="canvas-limits-rest"
+            style={{
+              left: `${100 - ((100 * reducedModeDiff) / props.canvasDimensions.x)}%`,
+            }}
+          ></div>
+          <div id="canvas-limits-corner" className="canvas-limits-corner"
+            style={{ width: `${widthPercentage}%` }}>
+          </div>
         </div>
         {props.drawnSVGs.map((drawnSVG: DrawnSVG, idx: number) => {
           return <div key={`drawn_svg_${idx}`} className="canvas-content"
