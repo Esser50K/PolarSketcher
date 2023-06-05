@@ -120,12 +120,8 @@ function PreviewCanvas(props: CanvasProps) {
     setNewPos(x, y);
   }, [props.maxout])
 
-  useEffect(() => {
-    if (contentDimensions.height !== 0) {
-      return
-    }
-
-    const content = document.getElementById("canvas-content");
+  const limitElementSize = (elementId: string, width: number, height: number) => {
+    const content = document.getElementById(elementId);
     let svgContent = content?.firstChild as SVGProps<SVGElement>;
     content?.childNodes?.forEach((value, key) => {
       if (value.nodeName === "svg") {
@@ -141,13 +137,31 @@ function PreviewCanvas(props: CanvasProps) {
     if (svgContent) {
       const viewBoxAny = (svgContent.viewBox as any)
       const dimensions = (viewBoxAny ? viewBoxAny.baseVal : svgContent.bbox) as SVGRect
-      const contentDimensionsWidth = Math.min(dimensions.width || 0, vituralCanvasDimensions.width);
-      const contentDimensionsHeight = Math.min(dimensions.height || 0, vituralCanvasDimensions.height);
-      (svgContent as HTMLElement).setAttribute("width", String(contentDimensionsWidth) + "px");
-      (svgContent as HTMLElement).setAttribute("height", String(contentDimensionsWidth) + "px");
-      setCurrentSVGContent(svgContent as HTMLElement);
-      resize(contentDimensionsWidth, contentDimensionsWidth);
+      (svgContent as HTMLElement).setAttribute("width", String(width) + "px");
+      (svgContent as HTMLElement).setAttribute("height", String(height) + "px");
+      return svgContent;
     }
+  }
+
+  useEffect(() => {
+    props.drawnSVGs.map((drawnSVG: DrawnSVG, idx: number) => {
+      limitElementSize(`drawn_svg_${idx}`,
+        drawnSVG.dimensions[0] / canvasDimensionsRatio,
+        drawnSVG.dimensions[1] / canvasDimensionsRatio)
+    })
+  })
+
+  // resize the SVG element on the fly
+  useEffect(() => {
+    if (contentDimensions.height !== 0) {
+      return
+    }
+
+    const svgContent = limitElementSize("canvas-content",
+      vituralCanvasDimensions.width, vituralCanvasDimensions.width)
+
+    setCurrentSVGContent(svgContent as HTMLElement);
+    resize(vituralCanvasDimensions.width, vituralCanvasDimensions.width);
   }, [props.svgContent])
 
   console.info("Virtual canvas:", vituralCanvasDimensions)
@@ -182,7 +196,7 @@ function PreviewCanvas(props: CanvasProps) {
           </div>
         </div>
         {props.drawnSVGs.map((drawnSVG: DrawnSVG, idx: number) => {
-          return <div key={`drawn_svg_${idx}`} className="canvas-content"
+          return <div id={`drawn_svg_${idx}`} className="canvas-content"
             style={{
               position: "absolute",
               transform: `rotate(${drawnSVG.rotation}deg)`,
