@@ -10,6 +10,8 @@ from flask_cors import CORS
 from flask_sockets import Sockets
 from geventwebsocket.websocket import WebSocket
 from werkzeug.exceptions import BadRequest
+from pymongo import MongoClient
+from pymongo.collection import Collection
 
 from polar_sketcher_interface import PolarSketcherInterface
 from path_generator import PathGenerator, ToolpathAlgorithm, PathsortAlgorithm, _generate_boundary_path
@@ -30,6 +32,7 @@ CANVAS_WIDTH_MM = int(os.getenv("CANVAS_WIDTH_MM", 513))
 CANVAS_HEIGHT_MM = int(os.getenv("CANVAS_HEIGHT_MM", 513))
 
 job_manager: DrawingJobManager = None
+svg_collection: Collection = None
 
 running_jobs = {}
 
@@ -112,8 +115,47 @@ def draw_boundary():
     return job_id
 
 
+@app.route('/drawing/save', methods=[POST])
+def save_drawing():
+    try:
+        payload = json.loads(request.data)
+    except json.JSONDecodeError:
+        return BadRequest("could not understand request")
+
+    name = payload['name']
+    try:
+        result = svg_collection.update_one({'name': name}, {'$set': payload}, upsert=True)
+        if result.upserted_id:
+            return str(result.upserted_id), 200
+        else:
+            return 'Entry updated successfully', 200
+    except Exception as e:
+        return str(e), 500
+
+
+@app.route('/drawing/list', methods=['GET'])
+def list_drawings():
+    try:
+        svgs = list(svg_collection.find({}, {'_id': 0}))
+        return {'svgs': svgs}, 200
+    except Exception as e:
+        return str(e), 500
+
+
+@app.route('/svg/<name>', methods=['GET'])
+def get_drawing(name):
+    try:
+        svg = svg_collection.find_one({'name': name}, {'_id': 0})
+        if svg:
+            return svg, 200
+        else:
+            return 'SVG not found', 404
+    except Exception as e:
+        return str(e), 500
+
+
 def main():
-    global job_manager
+    global job_manager, svg_collection
 
     from gevent import monkey
     monkey.patch_all()
@@ -127,6 +169,14 @@ def main():
                         default=(600, 600))
     args = parser.parse_args()
     job_manager = DrawingJobManager()
+
+    try:
+        client = MongoClient('mongodb://localhost:27017/')
+        db = client['polar_sketcher']
+        svg_collection = db['drawings_in_progress']
+    except Exception as e:
+        print("failed to connect to mongo DB:", e)
+        sys.exit(1)
 
     try:
         from gevent import pywsgi

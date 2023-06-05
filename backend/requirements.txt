@@ -1,6 +1,7 @@
 flask_cors
 gevent-websocket
 Flask-Sockets
+pymongo
 flask==1.1.4
 waitress~=2.0.0
 argparse~=1.4.0

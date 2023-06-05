@@ -8,6 +8,14 @@ import Divider from '../units/Divider';
 import NumberInput from '../units/NumberInput';
 import RangeInput from '../units/RangeInput';
 import CheckboxInput from '../units/CheckboxInput';
+import TextInput from '../units/TextInput';
+import DropdownInput from '../units/DropdownInput';
+
+
+interface SavedDrawing {
+    name: string,
+    drawings: DrawnSVG[],
+}
 
 const polar2Cartesian = (amplitude: number, angle: number) => {
     // Convert polar to cartesian
@@ -47,6 +55,9 @@ function MainUI() {
     const [dryrunChecked, setDryrunChecked] = useState(true);
     const [drawnSVGs, setDrawnSVGs] = useState<DrawnSVG[]>([]);
     const [canvasDimensions, setCanvasDimensions] = useState<{ x: number, y: number }>({ x: FULL_CANVAS_WIDTH, y: FULL_CANVAS_HEIGHT });
+    const [drawingName, setDrawingName] = useState("");
+    const [savedDrawings, setSavedDrawings] = useState<{ [key: string]: SavedDrawing }>({});
+    const [selectedDrawing, setSelectedDrawing] = useState("");
 
     // edit tools
     const [center, setCenter] = useState(false);
@@ -112,6 +123,68 @@ function MainUI() {
         }
     }
 
+    const saveDrawing = async () => {
+        if (drawingName === "") {
+            alert("missing drawing name")
+            return
+        }
+
+        if (drawnSVGs.length === 0) {
+            alert("missing drawings")
+            return
+        }
+
+        const body = {
+            name: drawingName,
+            drawings: drawnSVGs
+        }
+
+        const resp = await fetch(
+            "http://" + document.location.hostname + ":9943/drawing/save",
+            {
+                method: 'POST',
+                body: JSON.stringify(body)
+            }
+        )
+
+        if (resp.status !== 200) {
+            alert("failed to save drawing: " + await resp.text())
+            return
+        }
+    }
+
+    const loadDrawings = async () => {
+        try {
+            const resp = await fetch(
+                "http://" + document.location.hostname + ":9943/drawing/list",
+                { method: 'GET' }
+            )
+
+            if (resp.status !== 200) {
+                alert("failed to load drawings: " + await resp.text())
+                return
+            }
+
+            const newSavedDrawings: SavedDrawing[] = (await resp.json()).svgs;
+            const savedDrawingsMap = newSavedDrawings.reduce(
+                (acc: { [key: string]: SavedDrawing }, svg: SavedDrawing) => {
+                    acc[svg.name] = svg;
+                    return acc;
+                }, {})
+
+            setSavedDrawings(savedDrawingsMap)
+            setSelectedDrawing(newSavedDrawings[0].name)
+        } catch (error) {
+            console.error("failed to load drawings: " + String(error))
+        }
+    };
+
+    const loadDrawing = (drawingName: string) => {
+        const savedDrawing = savedDrawings[drawingName];
+        console.info("loading drawing:", savedDrawings, drawingName, savedDrawing);
+        setDrawnSVGs(savedDrawing.drawings);
+    };
+
     const handleUpload = async () => {
         if (svgContent === "") {
             return
@@ -149,7 +222,8 @@ function MainUI() {
                 {
                     method: 'POST',
                     body: JSON.stringify(body)
-                })
+                }
+            )
 
             if (resp.status !== 200) {
                 alert("failed to upload image: " + await resp.text())
@@ -205,6 +279,11 @@ function MainUI() {
         setWebsocket(webSocket);
     }, [runningJobId, websocket])
 
+    // load drawings on page load
+    useEffect(() => {
+        loadDrawings();
+    }, [])
+
     const onPositionUpdate = (position: { x: number, y: number }) => setContentPosition(position)
     const onResizeUpdate = (width: number, height: number) => setCotentSize([width, height])
 
@@ -218,37 +297,58 @@ function MainUI() {
     return (
         <div className="upload-container m-2">
             <div className="m-8">
-                <div className="w-full flex flex-col items-start justify-start">
-                    <div>
-                        <CheckboxInput
-                            label="Use Dryrun"
-                            default={true}
-                            onValueChange={(val) => { setDryrunChecked(val) }}
-                        ></CheckboxInput>
-                    </div>
-                    <div className="flex flex-row">
-                        {selectedFile !== "" ?
-                            <div className="button-base mt-2">
-                                <button
-                                    onClick={handleUpload}>Upload Image
-                                </button>
-                            </div> : null}
-                        <div className="flex items-center">
-                            <input type="file"
-                                accept="image/svg+xml"
-                                name="image"
-                                id="file"
-                                style={{ "display": "none" }}
-                                onChange={handleSelectImage}>
-                            </input>
-                            <p className={`mt-2 p-1 text-sm ${selectedFile === '' ? 'border-2 rounded-sm' : ''}`}>
-                                <label htmlFor="file">
-                                    {selectedFile === "" ? "Select Image" : selectedFile}
-                                </label>
-                            </p>
+                <div className="m-8 w-full flex flex-row">
+                    <div className="flex flex-col items-start justify-start">
+                        <div className="w-full">
+                            <CheckboxInput
+                                label="Use Dryrun"
+                                default={true}
+                                onValueChange={(val) => { setDryrunChecked(val) }}
+                            ></CheckboxInput>
+                        </div>
+                        <div className="flex flex-row">
+                            {selectedFile !== "" ?
+                                <div className="button-base mt-2">
+                                    <button
+                                        onClick={handleUpload}>Upload Image
+                                    </button>
+                                </div> : null}
+                            <div className="flex items-center">
+                                <input type="file"
+                                    accept="image/svg+xml"
+                                    name="image"
+                                    id="file"
+                                    style={{ "display": "none" }}
+                                    onChange={handleSelectImage}>
+                                </input>
+                                <p className={`mt-2 p-1 text-sm ${selectedFile === '' ? 'border-2 rounded-sm' : ''}`}>
+                                    <label htmlFor="file">
+                                        {selectedFile === "" ? "Select Image" : selectedFile}
+                                    </label>
+                                </p>
+                            </div>
                         </div>
                     </div>
+                    <div className="flex flex-col items-start justify-start ml-4">
+                        <TextInput
+                            title="Drawing Name"
+                            placeholder="write drawing name"
+                            onValueChange={(value) => { setDrawingName(value) }}
+                            buttonText="Save Drawing"
+                            onButtonClick={saveDrawing}
+                        ></TextInput>
+                    </div>
+                    <div className="flex flex-col items-start justify-start ml-4">
+                        <DropdownInput
+                            label="Select Drawing"
+                            options={savedDrawings}
+                            onValueChange={(name) => { setSelectedDrawing(name); }}
+                            buttonText="Load Drawing"
+                            onButtonClick={() => loadDrawing(selectedDrawing)}
+                        ></DropdownInput>
+                    </div>
                 </div>
+
                 <Divider title="Edit Tools"></Divider>
                 <div className="w-full m-2 flex flex-row items-stretch">
                     <div className="flex">
