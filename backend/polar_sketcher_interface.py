@@ -4,7 +4,13 @@ import struct
 from cmath import polar, pi
 from enum import Enum
 from typing import Tuple
+from threading import Thread, Event
 
+CMD_PROCESSED_SUCCESSFULLY_MSG = "CMD PROCESSED SUCCESSFULLY"
+CMD_PROCESSING_FAILURE_MSG = "CMD PROCESSING FAILURE"
+STATUS_START_MSG = "STATUS START"
+UNRECOGNIZED_CMD_MSG = "DID NOT RECOGNIZE COMMAND TYPE"
+CHECKSUM_MISMATCH = "CHECKSUM MISMATCH"
 
 class Mode(Enum):
     IDLE = 0
@@ -107,6 +113,11 @@ class PolarSketcherInterface:
         self.baud_rate = baud_rate
         self.serial = serial.Serial(port, baud_rate)
         self.status = Status()
+        self.__command_processed_event = Event()
+        self.__stop = False
+        self.__serial_reader = Thread(target=self.__process_serial, daemon=True)
+        self.__serial_reader.start()
+        self.__needs_retry = False
         time.sleep(2)
 
     def __encode_int(self, val: int):
@@ -114,47 +125,116 @@ class PolarSketcherInterface:
 
     def __encode_float(self, val: float):
         return struct.pack("<f", val)
+    
+    def __process_serial(self):
+        while not self.__stop:
+            try:
+                line = self.serial.readline().split(b'\r')[0]
 
-    def set_mode(self, mode: Mode):
-        self.serial.write(self.__encode_int(Command.SET_MODE.value))
-        self.serial.write(self.__encode_int(mode.value))
+                try:
+                    line = line.decode("utf-8")
+                except Exception as e:
+                    pass
+
+                if line == CMD_PROCESSED_SUCCESSFULLY_MSG:
+                    self.__command_processed_event.set()
+                elif line == CMD_PROCESSING_FAILURE_MSG:
+                    self.__needs_retry = True
+                    self.__command_processed_event.set()
+                elif line == STATUS_START_MSG:
+                    self.status.update_status(self.serial)
+                elif line == UNRECOGNIZED_CMD_MSG:
+                    # TODO implement resyncing if necessary
+                    print("NEEDS RESYNC")
+                    pass
+
+                print("serial:", line)
+            except Exception as e:
+                print("stopped reading from serial because:", e)
+                return
+            
+    def __wait_for_command_processing(self, max_wait=1):
+        start_time = time.time()
+        while not self.__command_processed_event.wait(timeout=.1):
+            if time.time() - start_time > max_wait:
+                return False
+
+        self.__command_processed_event.clear()
+        return True
+
+    def stop(self, wait=True):
+        self.__stop = True
+        if wait:
+            self.__serial_reader.join()
+
+    def write_message(self, msg: bytes):
+        self.serial.write(b'<<<' + msg + b'>>>')
+
+    def set_mode(self, mode: Mode) -> Status:
+        msg = self.__encode_int(Command.SET_MODE.value)
+        msg += self.__encode_int(mode.value)
+        self.write_message(msg)
+        self.__wait_for_command_processing()
+        return self.update_status()
 
     def calibrate(self) -> Status:
-        self.serial.write(self.__encode_int(Command.CALIBRATE.value))
-        # self.serial.write(self.__encode_int(self.status.travelableDistanceSteps))
-        # self.serial.write(self.__encode_float(self.status.stepsPerMm))
-        # self.serial.write(self.__encode_int(self.status.minAmplitudePos))
-        # self.serial.write(self.__encode_int(self.status.maxAmplituePos))
-        # self.serial.write(self.__encode_int(self.status.maxAnglePos))
-        # self.serial.write(self.__encode_int(self.status.maxEncoderCount))
+        msg = self.__encode_int(Command.CALIBRATE.value)
 
         # TODO read calibration from a file or something
         # travelable distance steps
-        self.serial.write(self.__encode_int(37806))
+        msg += self.__encode_int(37806)
+
         # steps per mm
-        self.serial.write(self.__encode_float(79.42))
+        msg += self.__encode_float(79.42)
+
         # minAmplitudePos
-        self.serial.write(self.__encode_int(2923))
+        msg += self.__encode_int(2923)
+
         # maxAmplituePos
-        self.serial.write(self.__encode_int(40730))
+        msg += self.__encode_int(40730)
+
         # maxAnglePos
-        self.serial.write(self.__encode_int(14551))
+        msg += self.__encode_int(14551)
+
         # maxEncoderCount
-        self.serial.write(self.__encode_int(1230))
+        msg += self.__encode_int(1230)
+
+        self.write_message(msg)
+        self.__wait_for_command_processing()
         return self.update_status()
 
     def add_position(self, amplitude, angle, pen, amplitude_velocity, angle_velocity):
-        self.serial.write(self.__encode_int(Command.ADD_POSITION.value))
-        self.serial.write(self.__encode_int(amplitude))
-        self.serial.write(self.__encode_int(angle))
-        self.serial.write(self.__encode_int(pen))
-        self.serial.write(self.__encode_int(amplitude_velocity))
-        self.serial.write(self.__encode_int(angle_velocity))
-        self.serial.read(1)  # ack byte
+        msg = self.__encode_int(Command.ADD_POSITION.value)
+        msg += self.__encode_int(amplitude)
+        msg += self.__encode_int(angle)
+        msg += self.__encode_int(pen)
+        msg += self.__encode_int(amplitude_velocity)
+        msg += self.__encode_int(angle_velocity)
+
+        checksum = (amplitude % 123) + \
+                   (angle % 123) + \
+                   (pen % 123) + \
+                   (amplitude_velocity % 123) + \
+                   (angle_velocity % 123)
+        
+        print("SENDING POS:", amplitude, angle, pen, amplitude_velocity, angle_velocity)
+        print("SENDING CHECKSUM VAL:", checksum)
+        msg += self.__encode_int(checksum)
+        self.write_message(msg)
+        
+        while not self.__wait_for_command_processing():
+            print("position not processed yet")
+
+        while self.__needs_retry:
+            self.write_message(msg)
+            self.__needs_retry = False
+            while not self.__wait_for_command_processing():
+                print("position not processed yet")
 
     def update_status(self) -> Status:
-        self.serial.write(self.__encode_int(Command.GET_STATUS.value))
-        self.status.update_status(self.serial)
+        msg = self.__encode_int(Command.GET_STATUS.value)
+        self.write_message(msg)
+        self.__wait_for_command_processing()
         return self.status
 
     def wait_for_idle(self) -> Status:
@@ -167,19 +247,14 @@ class PolarSketcherInterface:
         polar_coords = polar(complex(position[0], position[1]))
         amplitude = polar_coords[0]
         angle = polar_coords[1] * (180 / pi)
-
-        # TODO enable this in the future as a feature
-        # this is considering the canvas as a rect
-        # so the the stepper cannot reach the extremities in all positions
-        # polar_canvas: complex = polar(complex(canvas_size[0], canvas_size[1]))
-        # canvas_amplitude = polar_canvas[0]
         canvas_amplitude = canvas_size[0]
 
         amplitudeSteps = mapMinMax(
-            amplitude, 0, canvas_amplitude, 0, self.status.maxAmplituePos)
+            amplitude, 
+            0, canvas_amplitude, 
+            0, self.status.maxAmplituePos)
         angleSteps = mapMinMax(angle, 0, 90, 0, self.status.maxAnglePos)
         return int(amplitudeSteps), int(angleSteps)
-
 
 def mapMinMax(srcVal, srcMin, srcMax, targetMin, targetMax):
     return srcVal * ((targetMax - targetMin) / (srcMax - srcMin))

@@ -1,7 +1,7 @@
-#include <Arduino.h>
-#include <Servo.h>
-#include <ESP32Encoder.h>
 #include "Stepper/Stepper.h"
+#include <Arduino.h>
+#include <ESP32Encoder.h>
+#include <Servo.h>
 
 // pins
 const int enableStepper = 2;
@@ -190,6 +190,7 @@ struct position
   long angleVelocity;
 };
 
+int ledVal = HIGH;
 const int futurePositionsLength = 100;
 int previousPosition = 0;
 int nextPositionToPlace = 1;
@@ -218,14 +219,14 @@ bool draw()
       return false;
     }
 
-    stepsSinceCorrection += previousMove;
-    if (stepsSinceCorrection > stepsUntilCorrection)
-    {
-      long encoderAnglePos = encoderPosToAnglePos();
-      long positionDiff = encoderAnglePos - angleStepper->getPosition();
-      long correction = positionDiff / correctionSmoothness;
-      angleStepper->setPosition(angleStepper->getPosition() + correction);
-    }
+    // stepsSinceCorrection += previousMove;
+    // if (stepsSinceCorrection > stepsUntilCorrection)
+    // {
+    //   long encoderAnglePos = encoderPosToAnglePos();
+    //   long positionDiff = encoderAnglePos - angleStepper->getPosition();
+    //   long correction = positionDiff / correctionSmoothness;
+    //   angleStepper->setPosition(angleStepper->getPosition() + correction);
+    // }
 
     // set new target
     nextPositionToGo = potentialNextPositionToGo;
@@ -241,7 +242,8 @@ bool draw()
     // put pen in position
     // the +1 is just because the .read()
     // returns the last value we wrote -1 ¯\_(ツ)_/¯
-    if (penServo.read() + 1 != nextPosition.penPosition)
+    // if (penServo.read() + 1 != nextPosition.penPosition)
+    if (abs(nextPosition.penPosition - penServo.read()) > 2)
     {
       penServo.write(nextPosition.penPosition);
       // without this delay the plotter starts
@@ -251,6 +253,37 @@ bool draw()
   }
 
   return false;
+}
+
+void printStatus()
+{
+  Serial.println("STATUS START");
+  Serial.println(currentMode);
+  Serial.println(calibrated);
+  Serial.println(calibrating);
+
+  Serial.println(amplitudeStepper->getPosition());
+  Serial.println(amplitudeStepper->getTargetPosition());
+  Serial.println(amplitudeStepper->getCurrentSpeed());
+
+  Serial.println(angleStepper->getPosition());
+  Serial.println(angleStepper->getTargetPosition());
+  Serial.println(angleStepper->getCurrentSpeed());
+
+  Serial.println(travelableDistanceSteps);
+  Serial.println(stepsPerMm);
+  Serial.println(minAmplitudePos);
+  Serial.println(maxAmplituePos);
+  Serial.println(maxAnglePos);
+  Serial.println(angleEncoder.getCount());
+  Serial.println(maxEncoderCount);
+  Serial.println(nextPositionToPlace);
+  Serial.println(nextPositionToGo);
+
+  Serial.println(digitalRead(zeroAmplitudePin));
+  Serial.println(digitalRead(maxAmplitudePin));
+  Serial.println(digitalRead(zeroAnglePin));
+  Serial.println(digitalRead(maxAnglePin));
 }
 
 enum command
@@ -274,137 +307,189 @@ float readFloat()
   return f;
 }
 
-int commandBufferIdx = 0;
-int commandBuffer[50];
-bool parseCommand(int cmd)
+int intFromBuffer(const char *buffer, int position)
 {
+  int value = 0;
+  // for (int i = 0; i < 4; i++) {
+  //     value += (buffer[position + i] << (i * 8));
+  // }
+  memcpy(&value, buffer + position, sizeof(int));
+  return value;
+}
+
+float floatFromBuffer(const char *buffer, int position)
+{
+  float value = 0;
+  memcpy(&value, buffer + position, sizeof(float));
+  return value;
+}
+
+const int nMessageDelimiters = 3;
+bool commandStarted = false;
+bool commandComplete = false;
+
+int commandDelimiterCounter = 0;
+char commandStartChar = '<';
+char commandEndChar = '>';
+
+int commandBufferIdx = 0;
+char currentCommand = 0;
+char commandBuffer[100];
+
+int received_checksum = 0;
+int calculated_checksum = 0;
+bool parseCommand()
+{
+  int readIdx = 0;
+  int cmd = intFromBuffer(commandBuffer, readIdx);
+  readIdx += sizeof(cmd);
+
+  // Serial.println("GOT COMMAND TYPE: " + String(cmd));
+
   switch (cmd)
   {
   case setMode:
-    if (Serial.available() < sizeof(int))
-    {
-      return false;
-    }
-
-    commandBuffer[commandBufferIdx] = readInt();
-    commandBufferIdx++;
-    currentMode = commandBuffer[commandBufferIdx - 1];
-    return true;
+    // Serial.println("PROCESSING SET MODE COMMAND");
+    currentMode = intFromBuffer(commandBuffer, readIdx);
+    break;
   case getStatus:
-    Serial.println(currentMode);
-    Serial.println(calibrated);
-    Serial.println(calibrating);
-
-    Serial.println(amplitudeStepper->getPosition());
-    Serial.println(amplitudeStepper->getTargetPosition());
-    Serial.println(amplitudeStepper->getCurrentSpeed());
-
-    Serial.println(angleStepper->getPosition());
-    Serial.println(angleStepper->getTargetPosition());
-    Serial.println(angleStepper->getCurrentSpeed());
-
-    Serial.println(travelableDistanceSteps);
-    Serial.println(stepsPerMm);
-    Serial.println(minAmplitudePos);
-    Serial.println(maxAmplituePos);
-    Serial.println(maxAnglePos);
-    Serial.println(angleEncoder.getCount());
-    Serial.println(maxEncoderCount);
-    Serial.println(nextPositionToPlace);
-    Serial.println(nextPositionToGo);
-
-    Serial.println(digitalRead(zeroAmplitudePin));
-    Serial.println(digitalRead(maxAmplitudePin));
-    Serial.println(digitalRead(zeroAnglePin));
-    Serial.println(digitalRead(maxAnglePin));
-    return true;
+    // Serial.println("PROCESSING GET STATUS COMMAND");
+    printStatus();
+    break;
   case calibrate:
-    // check if all the values are in the buffer
-    if (Serial.available() < sizeof(int) * 6)
-    {
-      return false;
-    }
+    // Serial.println("PROCESSING CALIBRATE COMMAND");
+    travelableDistanceSteps = intFromBuffer(commandBuffer, readIdx);
+    stepsPerMm = floatFromBuffer(commandBuffer, readIdx + 4);
+    minAmplitudePos = intFromBuffer(commandBuffer, readIdx + 8);
+    maxAmplituePos = intFromBuffer(commandBuffer, readIdx + 12);
+    maxAnglePos = intFromBuffer(commandBuffer, readIdx + 16);
+    maxEncoderCount = intFromBuffer(commandBuffer, readIdx + 20);
 
-    travelableDistanceSteps = readInt();
-    stepsPerMm = readFloat();
-    minAmplitudePos = readInt();
-    maxAmplituePos = readInt();
-    maxAnglePos = readInt();
-    maxEncoderCount = readInt();
     amplitudeStepper->setPosition(minAmplitudePos);
     amplitudeStepper->setTargetPosition(minAmplitudePos);
     calibrated = true;
-    return true;
+    break;
   case addPosition:
-    if (Serial.available() < sizeof(int))
-    {
-      return false;
-    }
-
-    // check if we can read the next position
-    // without overwriting a position the sketcher hasn't reached yet
-    // TODO this triggers a bug because no new commands can be read until the stepper
-    // moves to the desired position, the next commands will then overflow
-    // the serial input buffer and make commands be misinterpreted
-    // for now this is fixed on the sender side by getting the status
-    // after writing a new position and holding on for new positions
+    // Serial.println("PROCESSING ADD POSITION");
     if (nextPositionToGo == nextPositionToPlace)
     {
       return false;
     }
 
-    // read parts of position until we have all the data
-    commandBuffer[commandBufferIdx] = readInt();
-    commandBufferIdx++;
-    if (commandBufferIdx < 5)
+    position p;
+    p.amplitudePosition = intFromBuffer(commandBuffer, readIdx);
+    p.anglePosition = intFromBuffer(commandBuffer, readIdx + 4);
+    p.penPosition = intFromBuffer(commandBuffer, readIdx + 8);
+    p.amplitudeVelocity = intFromBuffer(commandBuffer, readIdx + 12);
+    p.angleVelocity = intFromBuffer(commandBuffer, readIdx + 16);
+
+    received_checksum = intFromBuffer(commandBuffer, readIdx + 20);
+    calculated_checksum += (p.amplitudePosition % 123);
+    calculated_checksum += (p.anglePosition % 123);
+    calculated_checksum += (p.penPosition % 123);
+    calculated_checksum += (p.amplitudeVelocity % 123);
+    calculated_checksum += (p.angleVelocity % 123);
+
+    // Serial.print("GOT POS: ");
+    // Serial.print(String(p.amplitudePosition) + " ");
+    // Serial.print(String(p.anglePosition) + " ");
+    // Serial.print(String(p.penPosition) + " ");
+    // Serial.print(String(p.amplitudeVelocity) + " ");
+    // Serial.println(String(p.angleVelocity) + " ");
+    if (received_checksum != calculated_checksum)
     {
+      // Serial.println("CHECKSUM MISMATCH " + String(received_checksum) + " != " + String(calculated_checksum));
+      calculated_checksum = 0;
       return false;
     }
 
-    position p;
-    p.amplitudePosition = commandBuffer[0];
-    p.anglePosition = commandBuffer[1];
-    p.penPosition = commandBuffer[2];
-    p.amplitudeVelocity = commandBuffer[3];
-    p.angleVelocity = commandBuffer[4];
-
     futurePositions[nextPositionToPlace] = p;
     nextPositionToPlace = (nextPositionToPlace + 1) % futurePositionsLength;
-    Serial.write(1); // ack position added
-    return true;
+    calculated_checksum = 0;
+    break;
   default:
-    return true;
+    Serial.println("DID NOT RECOGNIZE COMMAND TYPE");
   }
 
-  // should never go here
+  calculated_checksum = 0;
   return true;
 }
 
-int currentCommand = 0;
 void readInput()
 {
-  // read command type
-  if (currentCommand == 0)
+  if (!Serial.available() && !commandComplete)
   {
-    if (Serial.available() < sizeof(int))
-    {
-      return;
-    }
-
-    currentCommand = readInt();
-    // let the command be read in the next loop iteration
+    return;
   }
-  else if (parseCommand(currentCommand))
+
+  char c = Serial.read();
+
+  // look for start of message
+  if (!commandStarted)
   {
+    if (c == commandStartChar)
+    {
+      commandDelimiterCounter++;
+      // Serial.println("GOT START DELIMITER");
+      if (commandDelimiterCounter == nMessageDelimiters)
+      {
+        commandStarted = true;
+        commandDelimiterCounter = 0;
+        // Serial.println("COMMAND STARTED");
+      }
+    }
+  }
+  else if (commandStarted && !commandComplete)
+  {
+    // look for end of message
+    if (c == commandEndChar)
+    {
+      commandDelimiterCounter++;
+      if (commandDelimiterCounter == nMessageDelimiters)
+      {
+        commandComplete = true;
+        // Serial.println("COMMAND READ " + String(commandComplete));
+      }
+    }
+    else
+    {
+      if (commandDelimiterCounter > 0)
+      {
+        // this means a previous byte was misinterpreted as an end delimiter
+        for (int i = 0; i < commandDelimiterCounter; i++)
+        {
+          commandBuffer[commandBufferIdx + i] = commandEndChar;
+          commandBufferIdx++;
+        }
+        commandDelimiterCounter = 0;
+      }
+      // Serial.println("GOT COMMAND CHAR " + String(c));
+      commandBuffer[commandBufferIdx] = c;
+      commandBufferIdx++;
+    }
+  }
+  else if (commandComplete)
+  {
+    // Serial.println("PROCESSING CMD");
+    if (parseCommand())
+    {
+      Serial.println("CMD PROCESSED SUCCESSFULLY");
+    }
+    else
+    {
+      Serial.println("CMD PROCESSING FAILURE");
+    }
+    commandStarted = false;
+    commandComplete = false;
     commandBufferIdx = 0;
-    currentCommand = 0;
+    commandDelimiterCounter = 0;
   }
 }
 
 void setup()
 {
-  Serial.setTxBufferSize(1024);
-  Serial.setRxBufferSize(1024);
+  Serial.setTxBufferSize(2048);
+  Serial.setRxBufferSize(2048);
   Serial.begin(BAUD_RATE);
 
   // configure output pins
@@ -456,7 +541,6 @@ void loop()
     angleStepper->setSpeed(1200);
     if (autoCalibrate())
       currentMode = homing;
-
     break;
   case drawing:
     if (draw())

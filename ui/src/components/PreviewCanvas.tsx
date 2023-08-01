@@ -13,6 +13,7 @@ export interface DrawnSVG {
 interface CanvasProps {
   fullCanvasDimensions: { x: number, y: number }
   canvasDimensions: { x: number, y: number }
+  imageURL?: string
   svgContent?: string
   rotation?: number
   center?: boolean
@@ -48,9 +49,14 @@ function PreviewCanvas(props: CanvasProps) {
     }
 
     if (props.onResizeUpdate) {
-      props.onResizeUpdate(width, height)
+      props.onResizeUpdate(width, height);
+      console.info("CONTENT DIMESNIONS:", width, height);
     }
   };
+
+  useEffect(() => {
+    resize(100, 100);
+  }, [props.imageURL])
 
   const setNewPos = (x: number, y: number) => {
     setContentPosition({ x: x, y: y })
@@ -64,7 +70,7 @@ function PreviewCanvas(props: CanvasProps) {
     if (vituralCanvasDimensions.height === 0) {
       const canvas = document.getElementById("canvas")
       // setting both as width since canvas is always square
-      setVirtualCanvasDimensions({ width: canvas?.offsetWidth || 0, height: canvas?.offsetWidth || 0 })
+      setVirtualCanvasDimensions({ width: canvas?.offsetWidth || 0, height: canvas?.offsetWidth || 0 });
     }
 
     window.addEventListener('resize', (event) => {
@@ -75,7 +81,7 @@ function PreviewCanvas(props: CanvasProps) {
     })
   }, [])
 
-  useEffect(() => {
+  const ensureSameSizeAsCanvas = () => {
     const canvas = document.getElementById("canvas");
     const widthHeightRatio = props.canvasDimensions.y / props.canvasDimensions.x;
     resize(
@@ -83,7 +89,11 @@ function PreviewCanvas(props: CanvasProps) {
       Math.min(contentDimensions.width || 0, (canvas?.offsetWidth || 0) * widthHeightRatio)
     )
     setVirtualCanvasDimensions({ width: canvas?.offsetWidth || 0, height: (canvas?.offsetWidth || 0) * widthHeightRatio })
-  }, [windowResizeEvent, props.canvasDimensions])
+  }
+
+  useEffect(() => {
+    ensureSameSizeAsCanvas()
+  }, [windowResizeEvent, props.canvasDimensions, props.svgContent])
 
   useEffect(() => {
     if (!props.center) {
@@ -121,6 +131,12 @@ function PreviewCanvas(props: CanvasProps) {
   }, [props.maxout])
 
   const limitElementSize = (elementId: string, width: number, height: number) => {
+    console.info("GOT IMAGE URL:", !!props.imageURL);
+    console.info("GOT SVG:", props.svgContent);
+    if (props.imageURL !== null) {
+      return;
+    }
+
     const content = document.getElementById(elementId);
     let svgContent = content?.firstChild as SVGProps<SVGElement>;
     content?.childNodes?.forEach((value, key) => {
@@ -163,8 +179,6 @@ function PreviewCanvas(props: CanvasProps) {
     setCurrentSVGContent(svgContent as HTMLElement);
     resize(vituralCanvasDimensions.width, vituralCanvasDimensions.width);
   }, [props.svgContent])
-
-  console.info("Virtual canvas:", vituralCanvasDimensions)
 
   // calculate where to draw previously drawn SVGs
   const reducedModeDiff = props.fullCanvasDimensions.x - props.canvasDimensions.x;
@@ -238,7 +252,7 @@ function PreviewCanvas(props: CanvasProps) {
               bounds=".preview-canvas"
             // enableResizing={{ "bottomRight": true }}
             >
-              {props.svgContent ?
+              {(props.svgContent || props.imageURL) ?
                 <div id="canvas-content-wrapper" className="canvas-content-wrapper">
                   <div id="position-label" className="svg-label" style={{ left: "-55%", top: "50%", rotate: "-90deg" }}>
                     {(contentPosition.x * canvasDimensionsRatio).toFixed(1) + ", " + (contentPosition.y * canvasDimensionsRatio).toFixed(1)}
@@ -249,11 +263,17 @@ function PreviewCanvas(props: CanvasProps) {
                   <div id="height-label" className="svg-label" style={{ right: "-55%", top: "50%", rotate: "90deg" }}>
                     {(contentDimensions.height * canvasDimensionsRatio).toFixed(1)}
                   </div>
-                  <div id="canvas-content" className="canvas-content"
-                    /*style={{ height: contentDimensions.height, width: contentDimensions.width }}*/
-                    style={{ transform: `rotate(${props.rotation}deg)` }}
-                    dangerouslySetInnerHTML={{ __html: props.svgContent }}>
-                  </div>
+
+                  {props.svgContent ?
+                    <div id="canvas-content" className="canvas-content"
+                      /*style={{ height: contentDimensions.height, width: contentDimensions.width }}*/
+                      style={{ transform: `rotate(${props.rotation}deg)` }}
+                      dangerouslySetInnerHTML={{ __html: props.svgContent }}>
+                    </div> :
+                    <div>
+                      <img src={props.imageURL} style={{ width: "100%", height: "100%" }} onDragStart={(event) => event.preventDefault()}></img>
+                    </div>
+                  }
                 </div> : null}
             </Rnd> : null
         }

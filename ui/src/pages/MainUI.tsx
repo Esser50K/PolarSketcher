@@ -47,6 +47,8 @@ const CANVAS_DIMENSIONS: { [key: string]: [number, number] } = {
 function MainUI() {
     const [selectedFile, setSelectedFile] = useState("");
     const [svgContent, setSvgContent] = useState("");
+    const [imageURL, setImageURL] = useState("");
+    const [image, setImage] = useState<File>();
     const [runningJobId, setRunningJobId] = useState("");
     const [websocket, setWebsocket] = useState<WebSocket>();
     const [drawnPoints, setDrawnPoints] = useState<[number, number][]>([]);
@@ -77,15 +79,27 @@ function MainUI() {
     const [searchStartY, setSearchStartY] = useState(0);
 
     const handleSelectImage = (event: React.ChangeEvent<HTMLInputElement>) => {
-        console.info(typeof (event), event.target.files?.item(0));
-        const reader = new FileReader();
-        reader.onload = () => {
-            setSvgContent(String(reader.result))
+        console.info("GOT FILE:", typeof (event), event.target.files?.item(0));
+        const file = event.target.files?.item(0);
+
+        if (!file) {
+            console.error("no image uploaded")
+            return;
         }
-        if (event.target.files && event.target.files[0]) {
-            reader.readAsText(event.target.files[0]);
-            setSelectedFile(event.target.files[0].name);
+
+        if (file.name.includes("svg")) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                setSvgContent(String(reader.result))
+            }
+            reader.readAsText(file);
+        } else {
+            const fileURL = URL.createObjectURL(file);
+            console.info("FILE URL:", fileURL);
+            setImage(file);
+            setImageURL(fileURL);
         }
+        setSelectedFile(file.name);
     }
 
     const setRealCanvasDimensions = (val: string) => {
@@ -161,7 +175,7 @@ function MainUI() {
             )
 
             if (resp.status !== 200) {
-                alert("failed to load drawings: " + await resp.text())
+                console.error("failed to load drawings: " + await resp.text())
                 return
             }
 
@@ -181,42 +195,81 @@ function MainUI() {
 
     const loadDrawing = (drawingName: string) => {
         const savedDrawing = savedDrawings[drawingName];
-        console.info("loading drawing:", savedDrawings, drawingName, savedDrawing);
         setDrawnSVGs(savedDrawing.drawings);
     };
 
     const handleUpload = async () => {
+        const canvasDiv = document.getElementById("simulation-canvas");
+        const realToVirtualRatio = (canvasDiv!.offsetWidth / canvasDimensions.x);
+
+        const sizeInPreviewCanvas = [contentSize[0] / realToVirtualRatio, contentSize[1] / realToVirtualRatio]
+        const posInPreviewCanvas = [(contentPosition.x / realToVirtualRatio), (contentPosition.y / realToVirtualRatio)]
+        const reducedModeOffset = FULL_CANVAS_WIDTH - canvasDimensions.x;
+        const body = {
+            position: [
+                posInPreviewCanvas[0] + reducedModeOffset,
+                posInPreviewCanvas[1]],
+            size: [sizeInPreviewCanvas[0], sizeInPreviewCanvas[1]],
+            dryrun: dryrunChecked,
+            rotation: rotation,
+            toolpath_config: {
+                algorithm: toolpathAlgorithm,
+                line_step: lineStep,
+                angle: toolpathAngle,
+            },
+            pathsort_config: {
+                algorithm: pathSortingAlgorithm,
+                x: searchStartX,
+                y: searchStartY,
+            },
+            svg: "",
+            image: "",
+        }
+
+        if (!image) {
+            body.svg = svgContent;
+            await handleUploadSVG(body);
+        } else {
+            await handleUploadImage(body);
+        }
+    }
+
+    const handleUploadImage = async (body: any) => {
+        if (!image) {
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.readAsDataURL(image);
+        reader.onloadend = async () => {
+            const base64data = reader.result as string;
+            body.image = base64data?.replace(/^data:image\/[^;]+;base64,/, "");  // need to remove the stupid prefix
+
+            // Send the Base64 string to the backend
+            const resp = await fetch("http://" + document.location.hostname + ":9943/asciify", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            })
+
+            if (resp.status !== 200) {
+                alert("failed to upload image: " + await resp.text())
+                return
+            }
+
+            const jsonResp = await resp.json()
+            handleUploadFinish(jsonResp.jobId, jsonResp.svg, body);
+        }
+    }
+
+    const handleUploadSVG = async (body: any) => {
         if (svgContent === "") {
             return
         }
 
         try {
-            const canvasDiv = document.getElementById("simulation-canvas");
-            const realToVirtualRatio = (canvasDiv!.offsetWidth / canvasDimensions.x);
-
-            const sizeInPreviewCanvas = [contentSize[0] / realToVirtualRatio, contentSize[1] / realToVirtualRatio]
-            const posInPreviewCanvas = [(contentPosition.x / realToVirtualRatio), (contentPosition.y / realToVirtualRatio)]
-            const reducedModeOffset = FULL_CANVAS_WIDTH - canvasDimensions.x;
-            const body = {
-                position: [
-                    posInPreviewCanvas[0] + reducedModeOffset,
-                    posInPreviewCanvas[1]],
-                size: [sizeInPreviewCanvas[0], sizeInPreviewCanvas[1]],
-                dryrun: dryrunChecked,
-                rotation: rotation,
-                toolpath_config: {
-                    algorithm: toolpathAlgorithm,
-                    line_step: lineStep,
-                    angle: toolpathAngle,
-                },
-                pathsort_config: {
-                    algorithm: pathSortingAlgorithm,
-                    x: searchStartX,
-                    y: searchStartY,
-                },
-                svg: svgContent
-            }
-
             const resp = await fetch(
                 "http://" + document.location.hostname + ":9943/upload",
                 {
@@ -231,23 +284,27 @@ function MainUI() {
             }
 
             const jobId = await resp.text()
-            setRunningJobId(jobId);
-            if (websocket) {
-                websocket.close();
-            }
-            setWebsocket(undefined);
-
-            const newDrawnSVGs = drawnSVGs;
-            newDrawnSVGs.push({
-                svgContent: svgContent,
-                position: body.position,
-                rotation: body.rotation,
-                dimensions: body.size
-            })
-            setDrawnSVGs(newDrawnSVGs)
+            handleUploadFinish(jobId, svgContent, body);
         } catch (e) {
             alert("failed to upload image: " + e)
         }
+    }
+
+    const handleUploadFinish = (jobId: string, svgContent: string, body: any) => {
+        setRunningJobId(jobId);
+        if (websocket) {
+            websocket.close();
+        }
+        setWebsocket(undefined);
+
+        const newDrawnSVGs = drawnSVGs;
+        newDrawnSVGs.push({
+            svgContent: svgContent,
+            position: body.position,
+            rotation: body.rotation,
+            dimensions: body.size
+        })
+        setDrawnSVGs(newDrawnSVGs)
     }
 
     useEffect(() => {
@@ -315,7 +372,7 @@ function MainUI() {
                                 </div> : null}
                             <div className="flex items-center">
                                 <input type="file"
-                                    accept="image/svg+xml"
+                                    accept="image/svg+xml+png+jpg"
                                     name="image"
                                     id="file"
                                     style={{ "display": "none" }}
@@ -403,6 +460,7 @@ function MainUI() {
                         center={center}
                         maxout={maxout}
                         svgContent={svgContent}
+                        imageURL={imageURL}
                         drawnSVGs={drawnSVGs}
                         onResizeUpdate={onResizeUpdate}
                         onPositionUpdate={onPositionUpdate}>

@@ -7,6 +7,27 @@ from path_generator import PathGenerator, CLOSE_PATH_COMMAND, PATH_END_COMMAND
 from polar_sketcher_interface import PolarSketcherInterface, Mode
 
 
+def gen_intermediate_points(start_point, end_point, points_per_unit=.1):
+    start_x, start_y = start_point
+    end_x, end_y = end_point
+
+    # Calculate the distance between the start and end points
+    distance = (((end_x - start_x) ** 2) + ((end_y - start_y) ** 2)) ** 0.5
+    if distance == 0:
+        yield end_point
+        return
+
+    # Calculate the number of points to generate
+    num_points = int(distance * points_per_unit)
+
+    # Generate intermediate points with uniform spacing
+    for i in range(num_points + 1):
+        ratio = i / num_points
+        x = start_x + (end_x - start_x) * ratio
+        y = start_y + (end_y - start_y) * ratio
+        yield int(x), int(y)
+
+
 class DrawingJobWebConnection:
     def __init__(self, ws: WebSocket, event: Event):
         self.unique_origin = ws.origin + str(uuid.uuid4())
@@ -35,13 +56,36 @@ class DrawingJob:
         self.worker = Thread(target=self.run)
         self._stop = False
 
+    def calculate_velocities(self, start, end, max_stepper_vel=15000):
+        if type(start) is tuple:
+            start_pos = self.polar_sketcher.convert_to_stepper_positions(self.path_generator.canvas_size, start)
+        else:
+            status = self.polar_sketcher.update_status()
+            start_pos = (status.amplitudeStepperPos, status.angleStepperPos)
+
+        end_pos = self.polar_sketcher.convert_to_stepper_positions(self.path_generator.canvas_size, end)
+
+        amp_diff = abs(end_pos[0] - start_pos[0])
+        angle_diff = abs(end_pos[1] - start_pos[1])
+
+        diff_ratio = amp_diff / angle_diff if angle_diff != 0 else 1
+        if diff_ratio < 1:
+            amp_velocity = max_stepper_vel * diff_ratio
+            angle_velocity = max_stepper_vel
+        else:
+            angle_velocity = max_stepper_vel * diff_ratio
+            amp_velocity = max_stepper_vel
+        
+        return int(amp_velocity), int(angle_velocity)
+
     def start(self):
         if self.polar_sketcher is not None:
             self.polar_sketcher.set_mode(Mode.HOME)
             status = self.polar_sketcher.wait_for_idle()
             status = self.polar_sketcher.calibrate()
             print(status)
-            self.polar_sketcher.set_mode(Mode.DRAW)
+            status = self.polar_sketcher.set_mode(Mode.DRAW)
+            print("DRAW MODE?:", status)
         self.worker.start()
 
     def add_web_connection(self, ws: WebSocket, event: Event):
@@ -54,63 +98,102 @@ class DrawingJob:
         }))
 
     def run(self):
+        completed_paths = 0
+
         position_sent_counter = 0
+        previous_point = None
         first_point = None
         # give a chance for the main thread to return the job_id to the frontend
-        time.sleep(.01)
+        time.sleep(.05)
         for point in self.path_generator.generate_points():
             if self._stop:
                 break
 
             if point == CLOSE_PATH_COMMAND:
+                if first_point is None:
+                    continue
+
                 if self.polar_sketcher is not None:
                     amplitude_pos, angle_pos = self.polar_sketcher.convert_to_stepper_positions(
                         self.path_generator.canvas_size,
                         first_point)
+                    amp_vel, angle_vel = self.calculate_velocities(previous_point, first_point)
                     self.polar_sketcher.add_position(
                         amplitude_pos,
                         angle_pos,
                         pen=30,
-                        amplitude_velocity=4000,
-                        angle_velocity=1000
+                        amplitude_velocity=amp_vel,
+                        angle_velocity=angle_vel
                     )
 
             elif point == PATH_END_COMMAND:
                 self.drawn_paths.append(self.current_path)
                 self.current_path = []
                 first_point = None
+                previous_point = None
 
-                # update all web connections
-                # self._broadcast(json.dumps({
-                #     "job_id": str(self.job_id),
-                #     "type": "update",
-                #     "payload": self.drawn_paths
-                # }))
+                completed_paths += 1
+
+                if completed_paths % 1000 == 0:
+                    print("SENDING PATHS")
+                    # update all web connections
+                    self._broadcast(json.dumps({
+                        "job_id": str(self.job_id),
+                        "type": "update",
+                        "payload": self.drawn_paths
+                    }))
             else:
                 self.current_path.append(point)
+
                 if self.polar_sketcher is not None:
                     # move from origin being in the top left to polar sketcher being on top right
                     point = (
-                        self.path_generator.canvas_size[0]-point[0], point[1])
+                        self.path_generator.canvas_size[0]-point[0],
+                        point[1]
+                    )
                     amplitude_pos, angle_pos = self.polar_sketcher.convert_to_stepper_positions(
                         self.path_generator.canvas_size,
                         point)
-                    pen_position = 0 if first_point is None else 30
+                    
+                    intermediate_points = []
+                    if first_point is None:
+                        print("generating intermediate points")
+                        status = self.polar_sketcher.update_status()
+                        start_pos = (status.amplitudeStepperPos, status.angleStepperPos)
+                        intermediate_points = list(gen_intermediate_points(start_pos, (amplitude_pos, angle_pos)))
+                        print("gened %d intermediate points" % len(intermediate_points))
 
                     # print(self.polar_sketcher.update_status())
+                    pen_position = 0 if first_point is None else 30
+                    amp_vel, angle_vel = self.calculate_velocities(previous_point, point)
+
+                    # send intermediate points so that the point correction
+                    # does not need to make a big correction after making a big move
+                    # for intermediate_point in intermediate_points:
+                    #     self.polar_sketcher.add_position(
+                    #         intermediate_point[0],
+                    #         intermediate_point[1],
+                    #         pen=0,
+                    #         amplitude_velocity=amp_vel,
+                    #         angle_velocity=angle_vel
+                    #     )
+                    #     position_sent_counter += 1
+
                     self.polar_sketcher.add_position(
                         amplitude_pos,
                         angle_pos,
-                        pen=pen_position,
-                        amplitude_velocity=2000,
-                        angle_velocity=500
+                        pen=30,
+                        amplitude_velocity=amp_vel,
+                        angle_velocity=angle_vel
                     )
                     position_sent_counter += 1
-                    print("SENT POSITIONS", position_sent_counter)
-                    print("POSITION:", amplitude_pos, angle_pos)
+                    # print("POSITION:", amplitude_pos, angle_pos)
+                    # print("STATUS UPDATE:", self.polar_sketcher.update_status())
+                    # print("SENT POSITIONS", position_sent_counter)
 
                 if first_point is None:
                     first_point = point
+            previous_point = point
 
         if self.polar_sketcher is not None:
             while True:

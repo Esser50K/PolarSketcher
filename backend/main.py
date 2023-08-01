@@ -5,7 +5,7 @@ import os
 import sys
 from threading import Event
 
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_sockets import Sockets
 from geventwebsocket.websocket import WebSocket
@@ -16,6 +16,7 @@ from pymongo.collection import Collection
 from polar_sketcher_interface import PolarSketcherInterface
 from path_generator import PathGenerator, ToolpathAlgorithm, PathsortAlgorithm, _generate_boundary_path
 from job_manager import DrawingJobManager
+from ascii_utils import image_to_ascii_svg
 
 app = Flask(__name__)
 CORS(app)
@@ -44,30 +45,7 @@ def upload():
     except json.JSONDecodeError:
         return BadRequest("could not understand request")
 
-    path_generator = PathGenerator()
-    path_generator.set_canvas_size((CANVAS_WIDTH_MM, CANVAS_HEIGHT_MM))
-    path_generator.load_svg(params["svg"])
-    path_generator.set_offset(params["position"])
-    path_generator.set_render_size(params["size"])
-    path_generator.set_rotation(params["rotation"])
-    try:
-        toolpath_algorithm = ToolpathAlgorithm(
-            params["toolpath_config"]["algorithm"])
-        path_generator.set_toolpath_algorithm(toolpath_algorithm)
-        path_generator.set_toolpath_line_number(
-            params["toolpath_config"]["line_step"])
-        path_generator.set_toolpath_angle(params["toolpath_config"]["angle"])
-    except Exception as e:
-        logging.error("failed to configure toolpath algorithm:", e)
-
-    try:
-        pathsort_algorithm = PathsortAlgorithm(
-            params["pathsort_config"]["algorithm"])
-        path_generator.set_pathsort_algorithm(pathsort_algorithm)
-        path_generator.set_pathsort_start_point(
-            complex(params["pathsort_config"]["x"], params["pathsort_config"]["y"]))
-    except Exception as e:
-        logging.error("failed to configure pathsort algorithm:", e)
+    path_generator = init_path_generator(params)
 
     polar_sketcher = None
     if not params["dryrun"]:
@@ -117,6 +95,9 @@ def draw_boundary():
 
 @app.route('/drawing/save', methods=[POST])
 def save_drawing():
+    if(not db_connected):
+        return "db not connected", 400
+
     try:
         payload = json.loads(request.data)
     except json.JSONDecodeError:
@@ -133,8 +114,11 @@ def save_drawing():
         return str(e), 500
 
 
-@app.route('/drawing/list', methods=['GET'])
+@app.route('/drawing/list', methods=[GET])
 def list_drawings():
+    if(not db_connected):
+        return "db not connected", 400
+
     try:
         svgs = list(svg_collection.find({}, {'_id': 0}))
         return {'svgs': svgs}, 200
@@ -142,8 +126,11 @@ def list_drawings():
         return str(e), 500
 
 
-@app.route('/svg/<name>', methods=['GET'])
+@app.route('/svg/<name>', methods=[GET])
 def get_drawing(name):
+    if(not db_connected):
+        return "db not connected", 400
+
     try:
         svg = svg_collection.find_one({'name': name}, {'_id': 0})
         if svg:
@@ -153,9 +140,61 @@ def get_drawing(name):
     except Exception as e:
         return str(e), 500
 
+@app.route('/asciify', methods=[POST])
+def asciify():
+    try:
+        params = json.loads(request.data)
+    except json.JSONDecodeError:
+        return BadRequest("could not understand request")
+    
+    imageb64 = params["image"]
+    params["svg"] = image_to_ascii_svg(imageb64)
+
+    path_generator = init_path_generator(params)
+
+    polar_sketcher = None
+    if not params["dryrun"]:
+        polar_sketcher = PolarSketcherInterface()
+
+    job_id = job_manager.start_drawing_job(path_generator, polar_sketcher)
+
+    response = {
+        "jobId": job_id,
+        "svg": params["svg"]
+    }
+    return jsonify(response)
+
+
+def init_path_generator(params):
+    path_generator = PathGenerator()
+    path_generator.set_canvas_size((CANVAS_WIDTH_MM, CANVAS_HEIGHT_MM))
+    path_generator.load_svg(params["svg"])
+    path_generator.set_offset(params["position"])
+    path_generator.set_render_size(params["size"])
+    path_generator.set_rotation(params["rotation"])
+    try:
+        toolpath_algorithm = ToolpathAlgorithm(
+            params["toolpath_config"]["algorithm"])
+        path_generator.set_toolpath_algorithm(toolpath_algorithm)
+        path_generator.set_toolpath_line_number(
+            params["toolpath_config"]["line_step"])
+        path_generator.set_toolpath_angle(params["toolpath_config"]["angle"])
+    except Exception as e:
+        logging.error("failed to configure toolpath algorithm:", e)
+
+    try:
+        pathsort_algorithm = PathsortAlgorithm(
+            params["pathsort_config"]["algorithm"])
+        path_generator.set_pathsort_algorithm(pathsort_algorithm)
+        path_generator.set_pathsort_start_point(
+            complex(params["pathsort_config"]["x"], params["pathsort_config"]["y"]))
+    except Exception as e:
+        logging.error("failed to configure pathsort algorithm:", e)
+
+    return path_generator
 
 def main():
-    global job_manager, svg_collection
+    global job_manager, svg_collection, db_connected
 
     from gevent import monkey
     monkey.patch_all()
@@ -163,6 +202,8 @@ def main():
     parser = argparse.ArgumentParser(description='Polar Sketcher Server')
     parser.add_argument("-d", "--dry-run", type=bool,
                         default=False, help="use dry run drawer")
+    parser.add_argument("-db", "--use-db", type=bool,
+                        default=False, help="use mongodb")
     parser.add_argument("-s", "--canvas-size",
                         type=tuple,
                         help="use dry run drawer",
@@ -170,13 +211,17 @@ def main():
     args = parser.parse_args()
     job_manager = DrawingJobManager()
 
-    try:
-        client = MongoClient('mongodb://localhost:27017/')
-        db = client['polar_sketcher']
-        svg_collection = db['drawings_in_progress']
-    except Exception as e:
-        print("failed to connect to mongo DB:", e)
-        sys.exit(1)
+    db_connected = False
+    if(args.use_db):
+        try:
+            client = MongoClient('mongodb://localhost:27017/')
+            db = client['polar_sketcher']
+            svg_collection = db['drawings_in_progress']
+
+            client.admin.command('ismaster')
+            db_connected = True
+        except Exception as e:
+            print("failed to connect to mongo DB:", e)
 
     try:
         from gevent import pywsgi
