@@ -20,6 +20,9 @@ def gen_intermediate_points(start_point, end_point, points_per_unit=.1):
     # Calculate the number of points to generate
     num_points = int(distance * points_per_unit)
 
+    if num_points == 0:
+        return
+
     # Generate intermediate points with uniform spacing
     for i in range(num_points + 1):
         ratio = i / num_points
@@ -56,7 +59,7 @@ class DrawingJob:
         self.worker = Thread(target=self.run)
         self._stop = False
 
-    def calculate_velocities(self, start, end, max_stepper_vel=15000):
+    def calculate_velocities(self, start, end, max_stepper_vel=2000):
         if type(start) is tuple:
             start_pos = self.polar_sketcher.convert_to_stepper_positions(self.path_generator.canvas_size, start)
         else:
@@ -169,15 +172,15 @@ class DrawingJob:
 
                     # send intermediate points so that the point correction
                     # does not need to make a big correction after making a big move
-                    # for intermediate_point in intermediate_points:
-                    #     self.polar_sketcher.add_position(
-                    #         intermediate_point[0],
-                    #         intermediate_point[1],
-                    #         pen=0,
-                    #         amplitude_velocity=amp_vel,
-                    #         angle_velocity=angle_vel
-                    #     )
-                    #     position_sent_counter += 1
+                    for intermediate_point in intermediate_points:
+                        self.polar_sketcher.add_position(
+                            intermediate_point[0],
+                            intermediate_point[1],
+                            pen=0,
+                            amplitude_velocity=amp_vel,
+                            angle_velocity=angle_vel
+                        )
+                        position_sent_counter += 1
 
                     self.polar_sketcher.add_position(
                         amplitude_pos,

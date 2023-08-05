@@ -181,6 +181,11 @@ long encoderPosToAnglePos()
   return map(angleEncoder.getCount(), 0, maxEncoderCount, 0, maxAnglePos);
 }
 
+long anglePosToEncoderPos(long stepperPos)
+{
+  return map(stepperPos, 0, maxAnglePos, 0, maxEncoderCount);
+}
+
 struct position
 {
   long amplitudePosition;
@@ -199,16 +204,60 @@ position futurePositions[futurePositionsLength];
 
 int stepsSinceCorrection = 0;
 int previousMove = 0;
-const int stepsUntilCorrection = 100;
-const float correctionSmoothness = 8;
+const int stepsUntilCorrection = 50;
+bool angleTargetReached = false;
+bool adjustingAnglePos = false;
 bool draw()
 {
   // step toward target
-  if (amplitudeStepper->getPosition() != amplitudeStepper->getTargetPosition() ||
-      angleStepper->getPosition() != angleStepper->getTargetPosition())
+  if ((amplitudeStepper->getPosition() != amplitudeStepper->getTargetPosition() ||
+       angleStepper->getPosition() != angleStepper->getTargetPosition()) &&
+      !adjustingAnglePos)
   {
     amplitudeStepper->stepTowardTarget();
     angleStepper->stepTowardTarget();
+  }
+  else if (!angleTargetReached)
+  {
+    // angle position correction routine
+    long encoderAnglePos = encoderPosToAnglePos();
+    if (!adjustingAnglePos)
+    {
+      float stepsPerEncoderUnit = maxAnglePos / float(maxEncoderCount);
+      long positionDiff = encoderAnglePos - angleStepper->getPosition();
+      if (positionDiff > stepsPerEncoderUnit)
+      {
+        adjustingAnglePos = true;
+      }
+      else
+      {
+        angleTargetReached = true;
+      }
+    }
+    else
+    {
+      long encoderTargetPos = anglePosToEncoderPos(angleStepper->getTargetPosition());
+      long encoderPosition = angleEncoder.getCount();
+      // Serial.println("CORRECTING POS " + String(encoderAnglePos) + " " + String(angleStepper->getPosition()));
+      // Serial.println("ENCODER POS " + String(encoderPosition) + " " + String(encoderTargetPos));
+
+      if (encoderPosition != encoderTargetPos)
+      {
+        bool goingForward = encoderPosition < encoderTargetPos;
+        bool stepped = angleStepper->singleStepAtSpeed(goingForward);
+        // Serial.println("STEPPED? " + String(stepped));
+        // Serial.println("NEW STEPPER POS? " + String(angleStepper->getPosition()));
+      }
+      else
+      {
+        angleTargetReached = true;
+        adjustingAnglePos = false;
+        encoderAnglePos = encoderPosToAnglePos();
+        // Serial.println("Setting stepper pos to: " + String(encoderAnglePos));
+        angleStepper->setPosition(encoderAnglePos);
+        angleStepper->setTargetPosition(encoderAnglePos);
+      }
+    }
   }
   else
   {
@@ -219,15 +268,6 @@ bool draw()
       return false;
     }
 
-    // stepsSinceCorrection += previousMove;
-    // if (stepsSinceCorrection > stepsUntilCorrection)
-    // {
-    //   long encoderAnglePos = encoderPosToAnglePos();
-    //   long positionDiff = encoderAnglePos - angleStepper->getPosition();
-    //   long correction = positionDiff / correctionSmoothness;
-    //   angleStepper->setPosition(angleStepper->getPosition() + correction);
-    // }
-
     // set new target
     nextPositionToGo = potentialNextPositionToGo;
     position nextPosition = futurePositions[nextPositionToGo];
@@ -235,6 +275,9 @@ bool draw()
     angleStepper->setTargetPosition(nextPosition.anglePosition);
     amplitudeStepper->setSpeed(nextPosition.amplitudeVelocity);
     angleStepper->setSpeed(nextPosition.angleVelocity);
+
+    angleTargetReached = false;
+    adjustingAnglePos = false;
 
     // count angle steps
     previousMove = abs(angleStepper->getPosition() - angleStepper->getTargetPosition());
@@ -512,7 +555,8 @@ void setup()
 
   // configure encoder
   ESP32Encoder::useInternalWeakPullResistors = UP;
-  angleEncoder.attachHalfQuad(encoderPhaseAPin, encoderPhaseBPin);
+  angleEncoder.always_interrupt = true;
+  angleEncoder.attachFullQuad(encoderPhaseAPin, encoderPhaseBPin);
   angleEncoder.setCount(0);
 
   // attach servo

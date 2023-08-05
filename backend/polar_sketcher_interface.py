@@ -43,6 +43,7 @@ class Status:
         self.minAmplitudePos = 0
         self.maxAmplituePos = 0
         self.maxAnglePos = 0
+        self.encoderCount = 0
         self.maxEncoderCount = 0
         self.nextPosToPlaceIdx = 0
         self.nextPosToGoIdx = 0
@@ -147,8 +148,8 @@ class PolarSketcherInterface:
                     # TODO implement resyncing if necessary
                     print("NEEDS RESYNC")
                     pass
-
-                print("serial:", line)
+                else:
+                    print("serial:", line)
             except Exception as e:
                 print("stopped reading from serial because:", e)
                 return
@@ -182,22 +183,22 @@ class PolarSketcherInterface:
 
         # TODO read calibration from a file or something
         # travelable distance steps
-        msg += self.__encode_int(37806)
+        msg += self.__encode_int(37713)
 
         # steps per mm
-        msg += self.__encode_float(79.42)
+        msg += self.__encode_float(79.23)
 
         # minAmplitudePos
         msg += self.__encode_int(2923)
 
         # maxAmplituePos
-        msg += self.__encode_int(40730)
+        msg += self.__encode_int(40637)
 
         # maxAnglePos
-        msg += self.__encode_int(14551)
+        msg += self.__encode_int(14345)
 
         # maxEncoderCount
-        msg += self.__encode_int(1230)
+        msg += self.__encode_int(2460)
 
         self.write_message(msg)
         self.__wait_for_command_processing()
@@ -217,8 +218,8 @@ class PolarSketcherInterface:
                    (amplitude_velocity % 123) + \
                    (angle_velocity % 123)
         
-        print("SENDING POS:", amplitude, angle, pen, amplitude_velocity, angle_velocity)
-        print("SENDING CHECKSUM VAL:", checksum)
+        # print("SENDING POS:", amplitude, angle, pen, amplitude_velocity, angle_velocity)
+        # print("SENDING CHECKSUM VAL:", checksum)
         msg += self.__encode_int(checksum)
         self.write_message(msg)
         
