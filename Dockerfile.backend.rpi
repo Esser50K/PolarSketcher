@@ -1,22 +1,36 @@
-FROM arm32v7/python:3.11-slim-buster
+FROM balenalib/raspberry-pi:bullseye
+
+RUN apt-get update && \
+    apt-get install -y \
+    git \
+    python3 python3-pip \
+    # dependencies for opencv
+    libwebp6 \
+    libgfortran5 \
+    libatlas3-base \
+    libjpeg-dev \
+    libpng-dev \
+    libcairo2 \
+    libpixman-1-0 \
+    libfontconfig1 \
+    libpango-1.0-0 \
+    libharfbuzz0b \
+    libopenjp2-7 \
+    libtiff5 \
+    libwebp6 \
+    libavcodec58 \
+    libavformat58 \
+    libswscale5 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Write the pip.conf directly within the image
 RUN echo "[global]" > /etc/pip.conf && \
     echo "extra-index-url = https://www.piwheels.org/simple" >> /etc/pip.conf
 
-RUN apt-get update && \
-    apt-get install -y \
-    git \
-    # dependencies for opencv
-    libgl1-mesa-glx \
-    libglib2.0-0
-
-RUN apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
 COPY backend/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 
 COPY backend /app/
 CMD ["python", "main.py"]

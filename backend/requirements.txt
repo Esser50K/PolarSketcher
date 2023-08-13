@@ -9,7 +9,7 @@ Werkzeug
 gevent
 pyserial
 MarkupSafe
-opencv-python
+opencv-python-headless
 Hershey-Fonts
 scour
 git+https://github.com/meerk40t/svgelements
