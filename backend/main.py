@@ -1,3 +1,6 @@
+from gevent import monkey
+monkey.patch_all()
+
 import argparse
 import json
 import logging
@@ -195,9 +198,6 @@ def init_path_generator(params):
 
 def main():
     global job_manager, svg_collection, db_connected
-
-    from gevent import monkey
-    monkey.patch_all()
 
     parser = argparse.ArgumentParser(description='Polar Sketcher Server')
     parser.add_argument("-d", "--dry-run", type=bool,
