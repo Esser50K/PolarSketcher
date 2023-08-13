@@ -10,7 +10,7 @@ from threading import Event
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from flask_sockets import Sockets
+from flask_sockets import Sockets, Rule
 from geventwebsocket.websocket import WebSocket
 from werkzeug.exceptions import BadRequest
 from pymongo import MongoClient
@@ -58,7 +58,7 @@ def upload():
     return job_id
 
 
-@sockets.route('/updates')
+@sockets.route('/updates', websocket=True)
 def get_updates(ws: WebSocket):
     try:
         job = job_manager.get_job()
@@ -198,6 +198,9 @@ def init_path_generator(params):
 
 def main():
     global job_manager, svg_collection, db_connected
+
+    # stubborn fix for this: https://github.com/heroku-python/flask-sockets/issues/81
+    sockets.url_map.add(Rule('/updates', endpoint=get_updates, websocket=True))
 
     parser = argparse.ArgumentParser(description='Polar Sketcher Server')
     parser.add_argument("-d", "--dry-run", type=bool,
