@@ -1,0 +1,29 @@
+# Use an official Node.js runtime as the base image
+FROM node:14 AS build
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy package.json and yarn.lock to the container
+COPY ui/package.json ui/yarn.lock ./
+
+# Install dependencies
+RUN yarn install
+
+# Copy the rest of the application to the container
+COPY ui/ .
+
+# Build the application
+RUN yarn build
+
+# Use an official Nginx image to serve the built application
+FROM nginx:alpine
+
+# Copy the built application from the build container to the Nginx container
+COPY --from=build /app/build /usr/share/nginx/html
+
+# Expose port 80
+EXPOSE 80
+
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]
