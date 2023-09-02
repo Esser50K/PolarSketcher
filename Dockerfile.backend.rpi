@@ -33,4 +33,4 @@ COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 
 COPY backend /app/
-CMD ["python", "main.py"]
+CMD ["python3", "main.py"]
