@@ -113,7 +113,7 @@ class PolarSketcherInterface:
     def __init__(self, baud_rate=115200, port=None):
         self.port = port if port is not None else find_serial_port()
         self.baud_rate = baud_rate
-        self.serial = serial.Serial(port, baud_rate)
+        self.serial = serial.Serial(self.port, self.baud_rate)
         self.status = Status()
         self.__command_processed_event = Event()
         self.__stop = False
