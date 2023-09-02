@@ -69,7 +69,7 @@ def find_closest_path_with_endpoint(last_point: complex, paths: list[Path], _: t
             end_dist = calc_distance(last_point, end_point)
             closest_distance = min(start_dist, end_dist)
             if closest_distance != start_dist:
-                p.reverse()
+                p = p.reversed()
             closest_path = p
             continue
 
@@ -79,7 +79,7 @@ def find_closest_path_with_endpoint(last_point: complex, paths: list[Path], _: t
         if distance < closest_distance:
             closest_distance = distance
             if closest_distance != start_dist:
-                p.reverse()
+                p = p.reversed()
             closest_path = p
             closest_path_idx = i
 
