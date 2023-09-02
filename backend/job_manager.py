@@ -59,7 +59,7 @@ class DrawingJob:
         self.worker = Thread(target=self.run)
         self._stop = False
 
-    def calculate_velocities(self, start, end, max_stepper_vel=10000):
+    def calculate_velocities(self, start, end, max_stepper_vel=2000):
         if type(start) is tuple:
             start_pos = self.polar_sketcher.convert_to_stepper_positions(self.path_generator.canvas_size, start)
         else:

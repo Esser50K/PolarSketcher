@@ -1,3 +1,4 @@
+import os
 import time
 import serial  # is actually pyserial
 import struct
@@ -6,8 +7,8 @@ from enum import Enum
 from typing import Tuple
 from threading import Thread, Event
 
-CMD_PROCESSED_SUCCESSFULLY_MSG = "CMD PROCESSED SUCCESSFULLY"
-CMD_PROCESSING_FAILURE_MSG = "CMD PROCESSING FAILURE"
+CMD_PROCESSED_SUCCESSFULLY_MSG = "OK"
+CMD_PROCESSING_FAILURE_MSG = "FAIL"
 STATUS_START_MSG = "STATUS START"
 UNRECOGNIZED_CMD_MSG = "DID NOT RECOGNIZE COMMAND TYPE"
 CHECKSUM_MISMATCH = "CHECKSUM MISMATCH"
@@ -109,8 +110,8 @@ class Status:
 
 
 class PolarSketcherInterface:
-    def __init__(self, port='/dev/cu.usbserial-0001', baud_rate=115200):
-        self.port = port
+    def __init__(self, baud_rate=115200, port=None):
+        self.port = port if port is not None else find_serial_port()
         self.baud_rate = baud_rate
         self.serial = serial.Serial(port, baud_rate)
         self.status = Status()
@@ -119,6 +120,7 @@ class PolarSketcherInterface:
         self.__serial_reader = Thread(target=self.__process_serial, daemon=True)
         self.__serial_reader.start()
         self.__needs_retry = False
+        self.__last_sent_msg = b''
         time.sleep(2)
 
     def __encode_int(self, val: int):
@@ -128,9 +130,21 @@ class PolarSketcherInterface:
         return struct.pack("<f", val)
     
     def __process_serial(self):
+        received = b''
         while not self.__stop:
             try:
-                line = self.serial.readline().split(b'\r')[0]
+                start_time = time.time()
+                serial._timeout = 1
+                received += self.serial.read()
+                if not received.endswith(b'\n'):
+                    if time.time() - start_time > 1:
+                        # this means a timeout occurred, let's see whats in the buffer
+                        print("TIMOUT, CURRENT BUFFER:", str(received))
+                        print("LAST SENT MSG:", str(self.__last_sent_msg))
+                    continue
+
+                line = received.split(b'\r')[0]
+                received = b''
 
                 try:
                     line = line.decode("utf-8")
@@ -169,7 +183,9 @@ class PolarSketcherInterface:
             self.__serial_reader.join()
 
     def write_message(self, msg: bytes):
-        self.serial.write(b'<<<' + msg + b'>>>')
+        msg = b'<<<' + msg + b'>>>'
+        self.serial.write(msg)
+        self.__last_sent_msg = msg
 
     def set_mode(self, mode: Mode) -> Status:
         msg = self.__encode_int(Command.SET_MODE.value)
@@ -225,8 +241,10 @@ class PolarSketcherInterface:
         
         while not self.__wait_for_command_processing():
             print("position not processed yet")
+            self.write_message(msg)
 
         while self.__needs_retry:
+            print("needs retry")
             self.write_message(msg)
             self.__needs_retry = False
             while not self.__wait_for_command_processing():
@@ -259,3 +277,11 @@ class PolarSketcherInterface:
 
 def mapMinMax(srcVal, srcMin, srcMax, targetMin, targetMax):
     return srcVal * ((targetMax - targetMin) / (srcMax - srcMin))
+
+def find_serial_port():
+    default = '/dev/cu.usbserial-0001'
+    devices = os.listdir('/dev/')
+    for device in devices:
+        if device.startswith(('ttyACM', 'ttyUSB', 'ttyS', 'cu.usbserial')):
+            return '/dev/' + device
+    return default

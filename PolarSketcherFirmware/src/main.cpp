@@ -516,11 +516,11 @@ void readInput()
     // Serial.println("PROCESSING CMD");
     if (parseCommand())
     {
-      Serial.println("CMD PROCESSED SUCCESSFULLY");
+      Serial.println("OK");
     }
     else
     {
-      Serial.println("CMD PROCESSING FAILURE");
+      Serial.println("FAIL");
     }
     commandStarted = false;
     commandComplete = false;
