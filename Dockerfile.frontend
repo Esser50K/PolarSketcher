@@ -13,8 +13,8 @@ RUN yarn install
 # Copy the rest of the application to the container
 COPY ui/ .
 
-# Build the application
-RUN yarn build
+# Build the application (the extra node options are for it to build on a raspberrypi)
+RUN NODE_OPTIONS=--max_old_space_size=2048 yarn build
 
 # Use an official Nginx image to serve the built application
 FROM nginx:alpine
