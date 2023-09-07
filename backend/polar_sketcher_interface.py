@@ -245,6 +245,7 @@ class PolarSketcherInterface:
 
         while self.__needs_retry:
             print("needs retry")
+            print(self.update_status())
             self.write_message(msg)
             self.__needs_retry = False
             while not self.__wait_for_command_processing():
