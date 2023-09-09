@@ -37,6 +37,7 @@ CANVAS_HEIGHT_MM = int(os.getenv("CANVAS_HEIGHT_MM", 513))
 
 job_manager: DrawingJobManager = None
 svg_collection: Collection = None
+polar_sketcher: PolarSketcherInterface = None
 
 running_jobs = {}
 
@@ -49,12 +50,8 @@ def upload():
         return BadRequest("could not understand request")
 
     path_generator = init_path_generator(params)
-
-    polar_sketcher = None
-    if not params["dryrun"]:
-        polar_sketcher = PolarSketcherInterface()
-
-    job_id = job_manager.start_drawing_job(path_generator, polar_sketcher)
+    job_id = job_manager.start_drawing_job(path_generator,
+                                           None if params["dryrun"] else polar_sketcher)
     return job_id
 
 
@@ -197,7 +194,7 @@ def init_path_generator(params):
     return path_generator
 
 def main():
-    global job_manager, svg_collection, db_connected
+    global polar_sketcher, job_manager, svg_collection, db_connected
 
     # stubborn fix for this: https://github.com/heroku-python/flask-sockets/issues/81
     sockets.url_map.add(Rule('/updates', endpoint=get_updates, websocket=True))
@@ -213,6 +210,7 @@ def main():
                         default=(600, 600))
     args = parser.parse_args()
     job_manager = DrawingJobManager()
+    polar_sketcher = PolarSketcherInterface()
 
     db_connected = False
     if(args.use_db):
