@@ -143,7 +143,7 @@ class PolarSketcherInterface:
                         print("LAST SENT MSG:", str(self.__last_sent_msg))
                     continue
 
-                line = received.split(b'\r')[0]
+                line = received.split(b'\n')[0]
                 received = b''
 
                 try:
@@ -245,7 +245,6 @@ class PolarSketcherInterface:
 
         while self.__needs_retry:
             print("needs retry")
-            print(self.update_status())
             self.write_message(msg)
             self.__needs_retry = False
             while not self.__wait_for_command_processing():

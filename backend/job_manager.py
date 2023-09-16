@@ -206,6 +206,7 @@ class DrawingJob:
                     continue
                 break
             self.polar_sketcher.set_mode(Mode.HOME)
+            self.polar_sketcher.stop()
         self._broadcast(json.dumps({
             "job_id": str(self.job_id),
             "type": "update",
