@@ -169,6 +169,7 @@ class DrawingJob:
                     # print(self.polar_sketcher.update_status())
                     pen_position = 0 if first_point is None else 30
                     amp_vel, angle_vel = self.calculate_velocities(previous_point, point)
+                    intermediate_amp_vel, intermediate_angle_vel = self.calculate_velocities(previous_point, point, 10000)
 
                     # send intermediate points so that the point correction
                     # does not need to make a big correction after making a big move
@@ -177,8 +178,8 @@ class DrawingJob:
                             intermediate_point[0],
                             intermediate_point[1],
                             pen=0,
-                            amplitude_velocity=amp_vel,
-                            angle_velocity=angle_vel
+                            amplitude_velocity=intermediate_amp_vel,
+                            angle_velocity=intermediate_angle_vel
                         )
                         position_sent_counter += 1
 
