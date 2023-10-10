@@ -1,7 +1,8 @@
 import cv2
 import argparse
 import numpy as np
-from svgpathtools import Path, Line, wsvg
+from typing import List
+from svgpathtools import Path, Line, CubicBezier, QuadraticBezier, wsvg
 from math import sin, pi
 from functools import lru_cache
 
@@ -27,14 +28,12 @@ def get_range_val(start, end, increment, idx):
     return list(frange(start, end, increment))[::-1][idx]
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Resize an image to the specified height while preserving the aspect ratio.')
+    parser = argparse.ArgumentParser(description='Convert a bitmap image to an SVG representation made of sine waves.')
     parser.add_argument('input_path', type=str, help='Path to the input image')
     parser.add_argument('--output-path', type=str, default="out.svg",  help='Path to save the resized image')
     parser.add_argument('--height', type=int, default=160,  help='Target height for the resized image')
     parser.add_argument('--pixel-width', type=float, default=4, help='Width of a pixel')
     parser.add_argument('--resolution', type=float, default=.2, help='Resolution of the sin graph function')
-    parser.add_argument('--amplitude-acceleration', type=float, default=2.5, help='Acceleration factor of amplitude  change')
-    parser.add_argument('--frequency-acceleration', type=float, default=1.05, help='Acceleration factor of frequency change')
     parser.add_argument('--max-amplitude', type=float, default=2, help='Max amplitude of individual sin waves')
     parser.add_argument('--max-frequency', type=float, default=3, help='Max frequency of individual sin waves')
     args = parser.parse_args()
@@ -43,7 +42,7 @@ if __name__ == "__main__":
     image = resize_image(image, args.height)  # adjust height
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # make it grayscale
 
-    all_lines = []
+    all_lines: List[Path] = []
     for row in range(image.shape[0]):
         sin_line = Path()
         current_x = 0
@@ -52,6 +51,7 @@ if __name__ == "__main__":
         current_sin_phase = 0
         line_start_height = (row * args.pixel_width) + (args.pixel_width/2)
         start_point = complex(current_x, line_start_height)
+
         for col in range(image.shape[1]):
             pixel = image[row, col]
 
@@ -66,27 +66,25 @@ if __name__ == "__main__":
 
             for _ in frange(0, args.pixel_width, args.resolution):
                 sin_amplitude_diff = target_sin_amplitude - current_sin_amplitude
+                current_sin_amplitude += sin_amplitude_diff * args.resolution
+
                 sin_frequency_diff = target_sin_frequency - current_sin_frequency
+                current_sin_frequency += sin_frequency_diff * args.resolution
 
-                amplitude_cap_func = min if sin_amplitude_diff > 0 else max
-                max_amplitude_diff = args.resolution*.1 * (1 if sin_amplitude_diff > 0 else -1)
-                amplitude_diff_step = amplitude_cap_func(sin_amplitude_diff / args.amplitude_acceleration, max_amplitude_diff)
-                current_sin_amplitude += amplitude_diff_step
-
-                frequency_cap_func = min if sin_frequency_diff > 0 else max
-                max_frequency_diff = args.resolution*.1 * (1 if sin_frequency_diff > 0 else -1)
-                frequency_diff_step = frequency_cap_func(sin_frequency_diff / args.frequency_acceleration, max_frequency_diff)
-                current_sin_frequency += frequency_diff_step
-                current_sin_phase += current_sin_frequency * args.resolution
+                # keep track of phase
+                # y = amp * sin((frequency * x) + phase)
+                # phase_shift = phase/frequency -> phase is args.resolution
+                # phase = frequency * phase_shift
+                phase_diff = current_sin_frequency * args.resolution
+                current_sin_phase += phase_diff
 
                 current_y = (current_sin_amplitude * sin(current_sin_phase)) + line_start_height
-                print("frequency, amp, ratio:", row, col, current_x, current_y-line_start_height, current_sin_frequency, target_sin_frequency)
                 end_point = complex(current_x, current_y)
                 line = Line(start_point, end_point)
                 sin_line.append(line)
 
                 current_x += args.resolution
-                start_point = end_point
+                start_point = end_point            
 
         all_lines.append(sin_line)
 
