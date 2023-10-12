@@ -152,9 +152,3 @@ if __name__ == "__main__":
         previous_sin_line = sin_line
 
     wsvg(paths=all_lines, filename=args.output_path)
-
-    
-
-
-
-
