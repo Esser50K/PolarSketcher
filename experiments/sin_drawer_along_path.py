@@ -58,8 +58,6 @@ class SinState:
         self.frequency += (self.target_frequency-self.frequency) * x
         self.phase += (self.frequency * x)
 
-        print(self.amplitude, self.frequency, self.phase)
-
         return complex(self.current_x, (self.amplitude * sin(self.phase)) + self.offset)
     
     def get_current_point(self) -> complex:
@@ -144,7 +142,7 @@ def get_target_amplitude_and_frequency(image: np.ndarray, point: complex, pixel_
 
 
 def draw_sin_along_path(follow_path: Path, sin_state: SinState, image: np.ndarray, drawing_params: DrawingParams):
-    step_size = .01 / follow_path.length()
+    step_size = drawing_params.resolution / follow_path.length()
 
     offset_path_points = []
     current_t = 0
@@ -164,7 +162,6 @@ def draw_sin_along_path(follow_path: Path, sin_state: SinState, image: np.ndarra
         sin_state.set_target_amplitude(target_amplitude)
         sin_state.set_target_frequency(target_frequency)
 
-        print(vec_len)
         offset_point = sin_state.move_by(vec_len)
         offset_point = complex(0, offset_point.imag)
 
@@ -205,7 +202,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Convert a bitmap image to an SVG representation made of sine waves.')
     parser.add_argument('input_path', type=str, help='Path to the input image')
     parser.add_argument('--output-path', type=str, default="out.svg",  help='Path to save the resized image')
-    parser.add_argument('--height', type=int, default=80,  help='Target height for the resized image')
+    parser.add_argument('--height', type=int, default=160,  help='Target height for the resized image')
     parser.add_argument('--pixel-width', type=float, default=4, help='Width of a pixel')
     parser.add_argument('--resolution', type=float, default=.1, help='Resolution of the sin graph function')
     parser.add_argument('--max-amplitude', type=float, default=2, help='Max amplitude of individual sin waves')
