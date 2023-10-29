@@ -40,17 +40,21 @@ function PreviewCanvas(props: CanvasProps) {
 
 
   const resize = (width: number, height: number) => {
+    resizeSVGContent(width, height);
+
+    if (props.onResizeUpdate) {
+      props.onResizeUpdate(width, height);
+      console.info("CONTENT DIMESNIONS:", width, height);
+    }
+  };
+
+  const resizeSVGContent = (width: number, height: number) => {
     setContentDimensions({ width: width, height: height });
 
     if (currentSVGContent) {
       currentSVGContent.setAttribute("width", String(width) + "px");
       currentSVGContent.setAttribute("height", String(height) + "px");
       setCurrentSVGContent(currentSVGContent);
-    }
-
-    if (props.onResizeUpdate) {
-      props.onResizeUpdate(width, height);
-      console.info("CONTENT DIMESNIONS:", width, height);
     }
   };
 
@@ -86,7 +90,7 @@ function PreviewCanvas(props: CanvasProps) {
     const widthHeightRatio = props.canvasDimensions.y / props.canvasDimensions.x;
     resize(
       Math.min(contentDimensions.width || 0, (canvas?.offsetWidth || 0) * widthHeightRatio),
-      Math.min(contentDimensions.width || 0, (canvas?.offsetWidth || 0) * widthHeightRatio)
+      Math.min(contentDimensions.height || 0, (canvas?.offsetHeight || 0) * widthHeightRatio)
     )
     setVirtualCanvasDimensions({ width: canvas?.offsetWidth || 0, height: (canvas?.offsetWidth || 0) * widthHeightRatio })
   }
@@ -138,6 +142,7 @@ function PreviewCanvas(props: CanvasProps) {
     }
 
     const content = document.getElementById(elementId);
+    // let svgContent = content?.firstChild as SVGProps<SVGElement>;
     let svgContent = content?.firstChild as SVGProps<SVGElement>;
     content?.childNodes?.forEach((value, key) => {
       if (value.nodeName === "svg") {
@@ -153,8 +158,11 @@ function PreviewCanvas(props: CanvasProps) {
     if (svgContent) {
       const viewBoxAny = (svgContent.viewBox as any)
       const dimensions = (viewBoxAny ? viewBoxAny.baseVal : svgContent.bbox) as SVGRect
-      (svgContent as HTMLElement).setAttribute("width", String(width) + "px");
-      (svgContent as HTMLElement).setAttribute("height", String(height) + "px");
+      // (svgContent as HTMLElement).setAttribute("width", String(width) + "px");
+      // (svgContent as HTMLElement).setAttribute("height", String(height) + "px");
+      const svgElement = svgContent as any;
+      (svgContent as HTMLElement).setAttribute("width", String(svgElement.width.baseVal.value) + "px");
+      (svgContent as HTMLElement).setAttribute("height", String(svgElement.height.baseVal.value) + "px");
       return svgContent;
     }
   }
@@ -172,13 +180,27 @@ function PreviewCanvas(props: CanvasProps) {
     if (contentDimensions.height !== 0) {
       return
     }
+    const canvas = document.getElementById("canvas")
+    const vituralCanvasWidth = canvas?.offsetWidth || 0;
+    const vituralCanvasHeight = canvas?.offsetWidth || 0;
 
-    const svgContent = limitElementSize("canvas-content",
-      vituralCanvasDimensions.width, vituralCanvasDimensions.width)
 
-    setCurrentSVGContent(svgContent as HTMLElement);
-    resize(vituralCanvasDimensions.width, vituralCanvasDimensions.width);
+    if (vituralCanvasDimensions.height === 0) {
+      setVirtualCanvasDimensions({ width: vituralCanvasWidth, height: vituralCanvasHeight });
+    }
+    resize(vituralCanvasWidth, vituralCanvasHeight);
   }, [props.svgContent])
+
+  useEffect(() => {
+    const canvas = document.getElementById("canvas")
+    const vituralCanvasWidth = canvas?.offsetWidth || 0;
+    const vituralCanvasHeight = canvas?.offsetWidth || 0;
+
+    if (vituralCanvasDimensions.height === 0) {
+      setVirtualCanvasDimensions({ width: vituralCanvasWidth, height: vituralCanvasHeight });
+    }
+    resizeSVGContent(props.canvasDimensions.x, props.canvasDimensions.y)
+  }, [props.canvasDimensions])
 
   // calculate where to draw previously drawn SVGs
   const reducedModeDiff = props.fullCanvasDimensions.x - props.canvasDimensions.x;
@@ -229,21 +251,22 @@ function PreviewCanvas(props: CanvasProps) {
               style={rndStyle}
               size={{ width: contentDimensions.width, height: contentDimensions.height }}
               onResize={(e, direction, ref, delta, position) => {
-                resize(parseInt(ref.style.width), parseInt(ref.style.height))
+                console.info("ON RESIZE:", ref.style.width, ref.style.height)
+                resizeSVGContent(parseInt(ref.style.width), parseInt(ref.style.height))
               }}
               onResizeStop={(e, direction, ref, delta, position) => {
-                resize(parseInt(ref.style.width), parseInt(ref.style.height));
-                ref.style.minWidth = String(contentDimensions.width)
-                ref.style.minHeight = String(contentDimensions.height)
+                resizeSVGContent(parseInt(ref.style.width), parseInt(ref.style.height));
+                // ref.style.minWidth = String(contentDimensions.width)
+                // ref.style.minHeight = String(contentDimensions.height)
               }}
               position={{ x: contentPosition.x, y: contentPosition.y }}
               onDrag={(e, d) => {
                 setContentPosition({ x: d.x, y: d.y })
               }}
               onDragStop={(e, d) => {
-                if (props.onPositionUpdate) {
-                  props.onPositionUpdate({ x: d.x, y: d.y })
-                }
+                // if (props.onPositionUpdate) {
+                //   props.onPositionUpdate({ x: d.x, y: d.y })
+                // }
                 setContentPosition({ x: d.x, y: d.y })
               }}
 
