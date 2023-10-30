@@ -9,7 +9,6 @@ from sort_paths import find_closest_path, \
     find_closest_path_with_circular_path_check, \
     find_closest_path_with_radar_scan, \
     sort_paths
-import time
 
 
 class ToolpathAlgorithm(Enum):
@@ -208,7 +207,7 @@ class PathGenerator:
                 yield point
 
             # signal end of path
-            if path.isclosed():
+            if len(path) > 0 and path.isclosedac():
                 yield CLOSE_PATH_COMMAND
 
             yield PATH_END_COMMAND

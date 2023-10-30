@@ -31,7 +31,8 @@ def parse(path: str, canvas_size: Tuple[float, float], split=True) -> Tuple[SVG,
                 paths.append(ToolsPath(element.d()))
         elif isinstance(element, Shape):
             e = Path(element)
-            e.reify()  # In some cases the shape could not have reified, the path must.
+            # In some cases the shape could not have reified, the path must.
+            e.reify()
             if len(e) != 0:
                 paths.append(ToolsPath(e.d()))
 

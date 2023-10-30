@@ -1,7 +1,8 @@
 from gevent import monkey
 monkey.patch_all()
 
-from ascii_utils import image_to_ascii_svg
+from bitmap_processors.ascii_utils import image_to_ascii_svg
+from bitmap_processors.sin_wave_utils import image_to_sin_wave
 from drawing_job.job_manager import DrawingJobManager
 from path_generator import PathGenerator, ToolpathAlgorithm, PathsortAlgorithm, _generate_boundary_path
 from polar_sketcher_interface import PolarSketcherInterface
@@ -12,7 +13,6 @@ from geventwebsocket.websocket import WebSocket
 from flask_sockets import Sockets, Rule
 from flask_cors import CORS
 from flask import Flask, request, jsonify
-from threading import Event
 import sys
 import os
 import logging
@@ -41,7 +41,7 @@ polar_sketcher: PolarSketcherInterface = None
 running_jobs = {}
 
 
-@app.route("/upload", methods=[POST])
+@app.route("/upload_svg", methods=[POST])
 def upload():
     try:
         params = json.loads(request.data)
@@ -49,8 +49,39 @@ def upload():
         return BadRequest("could not understand request")
 
     path_generator = init_path_generator(params)
+    path_generator.load_svg(params["svg"])
     job_id = job_manager.start_drawing_job(path_generator, params["dryrun"])
     return job_id
+
+
+@app.route('/upload_bitmap', methods=[POST])
+def asciify():
+    try:
+        params = json.loads(request.data)
+    except json.JSONDecodeError:
+        return BadRequest("could not understand request")
+
+    imageb64 = params["image"]
+    processor = params["image_processor"]
+    print("PROCESSOR:", processor)
+    processor_to_func = {
+        "ascii": image_to_ascii_svg,
+        "sin": image_to_sin_wave,
+    }
+
+    if processor not in processor_to_func.keys():
+        return BadRequest(f"no processor for '{processor}'")
+
+    all_paths = processor_to_func[processor](imageb64)
+    path_generator = init_path_generator(params)
+    path_generator.add_paths(all_paths)
+    job_id = job_manager.start_drawing_job(path_generator, params["dryrun"])
+
+    response = {
+        "jobId": job_id,
+        "svg": params["svg"]
+    }
+    return jsonify(response)
 
 
 @sockets.route('/updates', websocket=True)
@@ -134,35 +165,9 @@ def get_drawing(name):
         return str(e), 500
 
 
-@app.route('/asciify', methods=[POST])
-def asciify():
-    try:
-        params = json.loads(request.data)
-    except json.JSONDecodeError:
-        return BadRequest("could not understand request")
-
-    imageb64 = params["image"]
-    params["svg"] = image_to_ascii_svg(imageb64)
-
-    path_generator = init_path_generator(params)
-
-    polar_sketcher = None
-    if not params["dryrun"]:
-        polar_sketcher = PolarSketcherInterface()
-
-    job_id = job_manager.start_drawing_job(path_generator, polar_sketcher)
-
-    response = {
-        "jobId": job_id,
-        "svg": params["svg"]
-    }
-    return jsonify(response)
-
-
 def init_path_generator(params):
     path_generator = PathGenerator()
     path_generator.set_canvas_size((CANVAS_WIDTH_MM, CANVAS_HEIGHT_MM))
-    path_generator.load_svg(params["svg"])
     path_generator.set_offset(params["position"])
     path_generator.set_render_size(params["size"])
     path_generator.set_rotation(params["rotation"])
