@@ -197,7 +197,7 @@ struct position
 };
 
 int ledVal = HIGH;
-const int futurePositionsLength = 100;
+const int futurePositionsLength = 1000;
 int previousPosition = 0;
 int nextPositionToPlace = 1;
 int nextPositionToGo = 0;
@@ -228,7 +228,8 @@ bool draw()
       long positionDiff = encoderAnglePos - angleStepper->getPosition();
       if (positionDiff > stepsPerEncoderUnit)
       {
-        adjustingAnglePos = true;
+        // Uncomment to enable angle correction
+        // adjustingAnglePos = true;
       }
       else
       {
@@ -563,6 +564,8 @@ void setup()
   // attach servo
   penServo.attach(penServoPin);
   penServo.write(0);
+
+  Serial.println("SETUP DONE");
 }
 
 void loop()

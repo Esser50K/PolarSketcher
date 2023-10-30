@@ -1,25 +1,24 @@
 from gevent import monkey
 monkey.patch_all()
 
-import argparse
-import json
-import logging
-import os
-import sys
-from threading import Event
-
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from flask_sockets import Sockets, Rule
-from geventwebsocket.websocket import WebSocket
-from werkzeug.exceptions import BadRequest
-from pymongo import MongoClient
-from pymongo.collection import Collection
-
-from polar_sketcher_interface import PolarSketcherInterface
-from path_generator import PathGenerator, ToolpathAlgorithm, PathsortAlgorithm, _generate_boundary_path
-from job_manager import DrawingJobManager
 from ascii_utils import image_to_ascii_svg
+from job_manager import DrawingJobManager
+from path_generator import PathGenerator, ToolpathAlgorithm, PathsortAlgorithm, _generate_boundary_path
+from polar_sketcher_interface import PolarSketcherInterface
+from pymongo.collection import Collection
+from pymongo import MongoClient
+from werkzeug.exceptions import BadRequest
+from geventwebsocket.websocket import WebSocket
+from flask_sockets import Sockets, Rule
+from flask_cors import CORS
+from flask import Flask, request, jsonify
+from threading import Event
+import sys
+import os
+import logging
+import json
+import argparse
+
 
 app = Flask(__name__)
 CORS(app)
@@ -50,8 +49,7 @@ def upload():
         return BadRequest("could not understand request")
 
     path_generator = init_path_generator(params)
-    job_id = job_manager.start_drawing_job(path_generator,
-                                           None if params["dryrun"] else polar_sketcher)
+    job_id = job_manager.start_drawing_job(path_generator, params["dryrun"])
     return job_id
 
 
@@ -95,7 +93,7 @@ def draw_boundary():
 
 @app.route('/drawing/save', methods=[POST])
 def save_drawing():
-    if(not db_connected):
+    if (not db_connected):
         return "db not connected", 400
 
     try:
@@ -105,7 +103,8 @@ def save_drawing():
 
     name = payload['name']
     try:
-        result = svg_collection.update_one({'name': name}, {'$set': payload}, upsert=True)
+        result = svg_collection.update_one(
+            {'name': name}, {'$set': payload}, upsert=True)
         if result.upserted_id:
             return str(result.upserted_id), 200
         else:
@@ -116,7 +115,7 @@ def save_drawing():
 
 @app.route('/drawing/list', methods=[GET])
 def list_drawings():
-    if(not db_connected):
+    if (not db_connected):
         return "db not connected", 400
 
     try:
@@ -128,7 +127,7 @@ def list_drawings():
 
 @app.route('/svg/<name>', methods=[GET])
 def get_drawing(name):
-    if(not db_connected):
+    if (not db_connected):
         return "db not connected", 400
 
     try:
@@ -140,13 +139,14 @@ def get_drawing(name):
     except Exception as e:
         return str(e), 500
 
+
 @app.route('/asciify', methods=[POST])
 def asciify():
     try:
         params = json.loads(request.data)
     except json.JSONDecodeError:
         return BadRequest("could not understand request")
-    
+
     imageb64 = params["image"]
     params["svg"] = image_to_ascii_svg(imageb64)
 
@@ -193,6 +193,7 @@ def init_path_generator(params):
 
     return path_generator
 
+
 def main():
     global polar_sketcher, job_manager, svg_collection, db_connected
 
@@ -209,11 +210,11 @@ def main():
                         help="use dry run drawer",
                         default=(600, 600))
     args = parser.parse_args()
-    job_manager = DrawingJobManager()
     polar_sketcher = PolarSketcherInterface()
+    job_manager = DrawingJobManager(polar_sketcher)
 
     db_connected = False
-    if(args.use_db):
+    if (args.use_db):
         try:
             client = MongoClient('mongodb://localhost:27017/')
             db = client['polar_sketcher']
@@ -229,7 +230,6 @@ def main():
         from geventwebsocket.handler import WebSocketHandler
 
         print("Starting WebServer...")
-        # waitress.serve(sockets, host='0.0.0.0', port=90143)  # port -> polar
         server = pywsgi.WSGIServer(
             ('', 9943), app, handler_class=WebSocketHandler)
         server.serve_forever()

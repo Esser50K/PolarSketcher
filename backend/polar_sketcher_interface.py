@@ -9,9 +9,11 @@ from threading import Thread, Event
 
 CMD_PROCESSED_SUCCESSFULLY_MSG = "OK"
 CMD_PROCESSING_FAILURE_MSG = "FAIL"
+SETUP_DONE_MSG = "SETUP DONE"
 STATUS_START_MSG = "STATUS START"
 UNRECOGNIZED_CMD_MSG = "DID NOT RECOGNIZE COMMAND TYPE"
 CHECKSUM_MISMATCH = "CHECKSUM MISMATCH"
+
 
 class Mode(Enum):
     IDLE = 0
@@ -113,22 +115,50 @@ class PolarSketcherInterface:
     def __init__(self, baud_rate=115200, port=None):
         self.port = port if port is not None else find_serial_port()
         self.baud_rate = baud_rate
-        self.serial = serial.Serial(self.port, self.baud_rate)
         self.status = Status()
         self.__command_processed_event = Event()
+        self.__setup_done_event = Event()
         self.__stop = False
-        self.__serial_reader = Thread(target=self.__process_serial, daemon=True)
+        self.__serial_reader = None
+        self.__needs_retry = False
+        self.__last_sent_msg = b''
+
+        self.serial = None
+        self.__initilised = False
+        time.sleep(2)
+
+    def init(self):
+        if self.__initilised:
+            self.stop()
+            return
+
+        self.serial = serial.Serial(self.port, self.baud_rate)
+        self.status = Status()
+        self.__command_processed_event.clear()
+        self.__setup_done_event.clear()
+        self.__stop = False
+        self.__serial_reader = Thread(
+            target=self.__process_serial, daemon=True)
         self.__serial_reader.start()
         self.__needs_retry = False
         self.__last_sent_msg = b''
-        time.sleep(2)
+
+        self.__setup_done_event.wait()
+        self.__initilised = True
+
+    def stop(self, wait=True):
+        self.__stop = True
+        if wait:
+            self.__serial_reader.join()
+
+        self.__initilised = False
 
     def __encode_int(self, val: int):
         return val.to_bytes(4, 'little', signed=True)
 
     def __encode_float(self, val: float):
         return struct.pack("<f", val)
-    
+
     def __process_serial(self):
         received = b''
         while not self.__stop:
@@ -158,6 +188,8 @@ class PolarSketcherInterface:
                     self.__command_processed_event.set()
                 elif line == STATUS_START_MSG:
                     self.status.update_status(self.serial)
+                elif line == SETUP_DONE_MSG:
+                    self.__setup_done_event.set()
                 elif line == UNRECOGNIZED_CMD_MSG:
                     # TODO implement resyncing if necessary
                     print("NEEDS RESYNC")
@@ -167,7 +199,7 @@ class PolarSketcherInterface:
             except Exception as e:
                 print("stopped reading from serial because:", e)
                 return
-            
+
     def __wait_for_command_processing(self, max_wait=1):
         start_time = time.time()
         while not self.__command_processed_event.wait(timeout=.1):
@@ -176,11 +208,6 @@ class PolarSketcherInterface:
 
         self.__command_processed_event.clear()
         return True
-
-    def stop(self, wait=True):
-        self.__stop = True
-        if wait:
-            self.__serial_reader.join()
 
     def write_message(self, msg: bytes):
         msg = b'<<<' + msg + b'>>>'
@@ -233,12 +260,12 @@ class PolarSketcherInterface:
                    (pen % 123) + \
                    (amplitude_velocity % 123) + \
                    (angle_velocity % 123)
-        
+
         # print("SENDING POS:", amplitude, angle, pen, amplitude_velocity, angle_velocity)
         # print("SENDING CHECKSUM VAL:", checksum)
         msg += self.__encode_int(checksum)
         self.write_message(msg)
-        
+
         while not self.__wait_for_command_processing():
             print("position not processed yet")
             self.write_message(msg)
@@ -269,14 +296,16 @@ class PolarSketcherInterface:
         canvas_amplitude = canvas_size[0]
 
         amplitudeSteps = mapMinMax(
-            amplitude, 
-            0, canvas_amplitude, 
+            amplitude,
+            0, canvas_amplitude,
             0, self.status.maxAmplituePos)
         angleSteps = mapMinMax(angle, 0, 90, 0, self.status.maxAnglePos)
         return int(amplitudeSteps), int(angleSteps)
 
+
 def mapMinMax(srcVal, srcMin, srcMax, targetMin, targetMax):
     return srcVal * ((targetMax - targetMin) / (srcMax - srcMin))
+
 
 def find_serial_port():
     default = '/dev/cu.usbserial-0001'

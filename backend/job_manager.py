@@ -61,12 +61,14 @@ class DrawingJob:
 
     def calculate_velocities(self, start, end, max_stepper_vel=2000):
         if type(start) is tuple:
-            start_pos = self.polar_sketcher.convert_to_stepper_positions(self.path_generator.canvas_size, start)
+            start_pos = self.polar_sketcher.convert_to_stepper_positions(
+                self.path_generator.canvas_size, start)
         else:
             status = self.polar_sketcher.update_status()
             start_pos = (status.amplitudeStepperPos, status.angleStepperPos)
 
-        end_pos = self.polar_sketcher.convert_to_stepper_positions(self.path_generator.canvas_size, end)
+        end_pos = self.polar_sketcher.convert_to_stepper_positions(
+            self.path_generator.canvas_size, end)
 
         amp_diff = abs(end_pos[0] - start_pos[0])
         angle_diff = abs(end_pos[1] - start_pos[1])
@@ -78,7 +80,7 @@ class DrawingJob:
         else:
             angle_velocity = max_stepper_vel * diff_ratio
             amp_velocity = max_stepper_vel
-        
+
         return int(amp_velocity), int(angle_velocity)
 
     def start(self):
@@ -120,7 +122,8 @@ class DrawingJob:
                     amplitude_pos, angle_pos = self.polar_sketcher.convert_to_stepper_positions(
                         self.path_generator.canvas_size,
                         first_point)
-                    amp_vel, angle_vel = self.calculate_velocities(previous_point, first_point)
+                    amp_vel, angle_vel = self.calculate_velocities(
+                        previous_point, first_point)
                     self.polar_sketcher.add_position(
                         amplitude_pos,
                         angle_pos,
@@ -151,25 +154,30 @@ class DrawingJob:
                 if self.polar_sketcher is not None:
                     # move from origin being in the top left to polar sketcher being on top right
                     point = (
-                        self.path_generator.canvas_size[0]-point[0],
+                        self.path_generator.canvas_size[0] - point[0],
                         point[1]
                     )
                     amplitude_pos, angle_pos = self.polar_sketcher.convert_to_stepper_positions(
                         self.path_generator.canvas_size,
                         point)
-                    
+
                     intermediate_points = []
                     if first_point is None:
                         print("generating intermediate points")
                         status = self.polar_sketcher.update_status()
-                        start_pos = (status.amplitudeStepperPos, status.angleStepperPos)
-                        intermediate_points = list(gen_intermediate_points(start_pos, (amplitude_pos, angle_pos)))
-                        print("gened %d intermediate points" % len(intermediate_points))
+                        start_pos = (status.amplitudeStepperPos,
+                                     status.angleStepperPos)
+                        intermediate_points = list(gen_intermediate_points(
+                            start_pos, (amplitude_pos, angle_pos)))
+                        print("gened %d intermediate points" %
+                              len(intermediate_points))
 
                     # print(self.polar_sketcher.update_status())
                     pen_position = 0 if first_point is None else 30
-                    amp_vel, angle_vel = self.calculate_velocities(previous_point, point)
-                    intermediate_amp_vel, intermediate_angle_vel = self.calculate_velocities(previous_point, point, 10000)
+                    amp_vel, angle_vel = self.calculate_velocities(
+                        previous_point, point)
+                    intermediate_amp_vel, intermediate_angle_vel = self.calculate_velocities(
+                        previous_point, point, 10000)
 
                     # send intermediate points so that the point correction
                     # does not need to make a big correction after making a big move
@@ -202,7 +210,7 @@ class DrawingJob:
         if self.polar_sketcher is not None:
             while True:
                 status = self.polar_sketcher.update_status()
-                if status.nextPosToGoIdx != status.nextPosToPlaceIdx-1:
+                if status.nextPosToGoIdx != status.nextPosToPlaceIdx - 1:
                     time.sleep(.1)
                     continue
                 break
@@ -240,8 +248,9 @@ class DrawingJob:
 
 
 class DrawingJobManager:
-    def __init__(self):
+    def __init__(self, polar_sketcher_interface: PolarSketcherInterface):
         self.current_job: DrawingJob = None
+        self.polar_sketcher_interface = polar_sketcher_interface
 
     def stop(self):
         if self.current_job:
@@ -250,8 +259,18 @@ class DrawingJobManager:
     def get_job(self) -> DrawingJob:
         return self.current_job
 
-    def start_drawing_job(self, path_generator: PathGenerator, polar_sketcher: PolarSketcherInterface):
+    def start_drawing_job(self, path_generator: PathGenerator, dryrun=False):
         job_id = uuid.uuid4()
-        self.current_job = DrawingJob(job_id, path_generator, polar_sketcher)
+
+        # TODO PolarSketcherInterface should interaface with DrawingJob and read updates from there
+        # Should have another struct thats a WS broadcaster, also just reading points from the job
+        if not dryrun:
+            self.polar_sketcher_interface.init()
+            self.current_job = DrawingJob(
+                job_id, path_generator, self.polar_sketcher)
+        else:
+            self.current_job = DrawingJob(
+                job_id, path_generator, None)
+
         self.current_job.start()
         return str(job_id)
