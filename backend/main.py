@@ -2,7 +2,7 @@ from gevent import monkey
 monkey.patch_all()
 
 from ascii_utils import image_to_ascii_svg
-from job_manager import DrawingJobManager
+from drawing_job.job_manager import DrawingJobManager
 from path_generator import PathGenerator, ToolpathAlgorithm, PathsortAlgorithm, _generate_boundary_path
 from polar_sketcher_interface import PolarSketcherInterface
 from pymongo.collection import Collection
@@ -56,13 +56,7 @@ def upload():
 @sockets.route('/updates', websocket=True)
 def get_updates(ws: WebSocket):
     try:
-        job = job_manager.get_job()
-        if job is None:
-            ws.close()
-            return
-
-        event = Event()
-        job.add_web_connection(ws, event)
+        event = job_manager.add_ws_client(ws)
         event.wait()
     except Exception as e:
         logging.error("failed to decode message:", e)
@@ -210,8 +204,7 @@ def main():
                         help="use dry run drawer",
                         default=(600, 600))
     args = parser.parse_args()
-    polar_sketcher = PolarSketcherInterface()
-    job_manager = DrawingJobManager(polar_sketcher)
+    job_manager = DrawingJobManager()
 
     db_connected = False
     if (args.use_db):
