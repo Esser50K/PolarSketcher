@@ -54,7 +54,8 @@ class WSBroadcastConsumer(Consumer):
         elif point == PATH_END_COMMAND:
             self.drawn_paths.append(copy(self.current_path))
             self.current_path = []
-            self._broadcast(self._msg())
+            if len(self.websockets) > 0:
+                self._broadcast(self._msg())
 
     def _broadcast(self, msg: str, clients=None):
         if clients is None:

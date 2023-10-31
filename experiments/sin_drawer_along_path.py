@@ -2,6 +2,7 @@ import cv2
 import argparse
 import numpy as np
 import math
+import time
 from typing import List, Tuple
 from svgpathtools import Path, Line, QuadraticBezier, CubicBezier, wsvg
 from math import sin, pi
@@ -57,8 +58,8 @@ class SinState:
 
     def move_by(self, x: float) -> complex:
         self.current_x += x
-        self.amplitude += (self.target_amplitude-self.amplitude) * x
-        self.frequency += (self.target_frequency-self.frequency) * x
+        self.amplitude += (self.target_amplitude - self.amplitude) * x
+        self.frequency += (self.target_frequency - self.frequency) * x
         self.phase += (self.frequency * x)
 
         return complex(self.current_x, (self.amplitude * sin(self.phase)) + self.offset)
@@ -77,8 +78,8 @@ def generate_horizontal_follow_paths(image: np.ndarray, pixel_width=1):
     path = Path()
 
     for row in range(image.shape[0]):
-        height = (row*pixel_width)+(pixel_width/2)
-        width = image.shape[1]*pixel_width
+        height = (row * pixel_width) + (pixel_width / 2)
+        width = image.shape[1] * pixel_width
         point1 = complex(0, height)
         point2 = complex(width, height)
 
@@ -99,8 +100,8 @@ def generate_connecting_follow_paths(image: np.ndarray, pixel_width=1):
     path = Path()
 
     for row in range(image.shape[0]):
-        height = (row*pixel_width)+(pixel_width/2)
-        width = image.shape[1]*pixel_width
+        height = (row * pixel_width) + (pixel_width / 2)
+        width = image.shape[1] * pixel_width
         point1 = complex(0, height)
         point2 = complex(width, height)
 
@@ -136,26 +137,30 @@ def get_target_amplitude_and_frequency(image: np.ndarray, point: complex, pixel_
                                        max_amplitude, max_frequency):
     try:
         pixel_brightness = image[int(
-            point.imag/pixel_width), int(point.real/pixel_width)]
+            point.imag / pixel_width), int(point.real / pixel_width)]
         target_sin_amplitude = get_range_val(0, max_amplitude,
-                                             max_amplitude/255,
+                                             max_amplitude / 255,
                                              pixel_brightness)
         target_sin_frequency = get_range_val(0, max_frequency,
-                                             max_frequency/255,
+                                             max_frequency / 255,
                                              pixel_brightness)
         return target_sin_amplitude, target_sin_frequency
     except:
-        return max_amplitude/2, max_frequency/2
+        return max_amplitude / 2, max_frequency / 2
 
 
 def draw_sin_along_path(follow_path: Path, sin_state: SinState, image: np.ndarray, drawing_params: DrawingParams):
     step_size = drawing_params.resolution / follow_path.length()
 
+    max_path_len = 100
+    offset_path = Path()
+    total_length = 0
+
     offset_path_points = []
     current_t = 0
     while current_t < 1:
         follow_path_start_point = follow_path.point(current_t)
-        current_t = min(1, current_t+step_size)
+        current_t = min(1, current_t + step_size)
         follow_path_end_point = follow_path.point(current_t)
 
         line_vec = follow_path_end_point - follow_path_start_point
@@ -172,21 +177,20 @@ def draw_sin_along_path(follow_path: Path, sin_state: SinState, image: np.ndarra
         offset_point = sin_state.move_by(vec_len)
         offset_point = complex(0, offset_point.imag)
 
-        rotated_x = np.cos(vec_angle)*(offset_point.real) - \
-            np.sin(vec_angle)*(offset_point.imag)
-        rotated_y = np.sin(vec_angle)*(offset_point.real) + \
-            np.cos(vec_angle)*(offset_point.imag)
+        rotated_x = math.cos(vec_angle) * (offset_point.real) - \
+            math.sin(vec_angle) * (offset_point.imag)
+        rotated_y = math.sin(vec_angle) * (offset_point.real) + \
+            math.cos(vec_angle) * (offset_point.imag)
         rotated_point = complex(rotated_x, rotated_y)
 
         translated_offset_point = follow_path_start_point + rotated_point
         offset_path_points.append(translated_offset_point)
 
-    max_path_len = 10000
-    offset_path = Path()
-    total_length = 0
-    for i in range(len(offset_path_points)-1):
-        start_point = offset_path_points[i]
-        end_point = offset_path_points[i+1]
+        if len(offset_path_points) < 2:
+            continue
+
+        start_point = offset_path_points[-2]
+        end_point = offset_path_points[-1]
         line = Line(start_point, end_point)
         offset_path.append(line)
         total_length += line.length()

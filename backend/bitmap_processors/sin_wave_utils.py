@@ -2,6 +2,7 @@ import cv2
 import argparse
 import numpy as np
 import base64
+import math
 from typing import List
 from svgpathtools import Path, Line, CubicBezier, wsvg
 from functools import lru_cache
@@ -60,10 +61,10 @@ class SinState:
         self.frequency += (self.target_frequency - self.frequency) * x
         self.phase += (self.frequency * x)
 
-        return complex(self.current_x, (self.amplitude * np.sin(self.phase)) + self.offset)
+        return complex(self.current_x, (self.amplitude * math.sin(self.phase)) + self.offset)
 
     def get_current_point(self) -> complex:
-        return complex(self.current_x, (self.amplitude * np.sin(self.phase)) + self.offset)
+        return complex(self.current_x, (self.amplitude * math.sin(self.phase)) + self.offset)
 
     def set_target_amplitude(self, target_amplitude):
         self.target_amplitude = target_amplitude
@@ -150,6 +151,10 @@ def get_target_amplitude_and_frequency(image: np.ndarray, point: complex, pixel_
 def draw_sin_along_path(follow_path: Path, sin_state: SinState, image: np.ndarray, drawing_params: DrawingParams):
     step_size = drawing_params.resolution / follow_path.length()
 
+    max_path_len = 100
+    offset_path = Path()
+    total_length = 0
+
     offset_path_points = []
     current_t = 0
     while current_t < 1:
@@ -171,21 +176,20 @@ def draw_sin_along_path(follow_path: Path, sin_state: SinState, image: np.ndarra
         offset_point = sin_state.move_by(vec_len)
         offset_point = complex(0, offset_point.imag)
 
-        rotated_x = np.cos(vec_angle) * (offset_point.real) - \
-            np.sin(vec_angle) * (offset_point.imag)
-        rotated_y = np.sin(vec_angle) * (offset_point.real) + \
-            np.cos(vec_angle) * (offset_point.imag)
+        rotated_x = math.cos(vec_angle) * (offset_point.real) - \
+            math.sin(vec_angle) * (offset_point.imag)
+        rotated_y = math.sin(vec_angle) * (offset_point.real) + \
+            math.cos(vec_angle) * (offset_point.imag)
         rotated_point = complex(rotated_x, rotated_y)
 
         translated_offset_point = follow_path_start_point + rotated_point
         offset_path_points.append(translated_offset_point)
 
-    max_path_len = 100
-    offset_path = Path()
-    total_length = 0
-    for i in range(len(offset_path_points) - 1):
-        start_point = offset_path_points[i]
-        end_point = offset_path_points[i + 1]
+        if len(offset_path_points) < 2:
+            continue
+
+        start_point = offset_path_points[-2]
+        end_point = offset_path_points[-1]
         line = Line(start_point, end_point)
         offset_path.append(line)
         total_length += line.length()
