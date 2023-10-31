@@ -37,12 +37,12 @@ class PolarSketcherConsumer(Consumer):
                 consumer_point, pen_position=30)
         elif point == CLOSE_PATH_COMMAND:
             self._consume_point(
-                self.first_point, consumer_point.canvas_size, pen_position=30)
+                self.first_point, pen_position=30)
         elif point == PATH_END_COMMAND:
             self.first_point = None
             self.last_point = None
 
-    def _consume_point(self, point: ConsumerPoint, canvas_size: Tuple, pen_position: int):
+    def _consume_point(self, point: ConsumerPoint, pen_position: int):
         amplitude_pos, angle_pos = self.polar_sketcher.convert_to_stepper_positions(
             point.canvas_size,
             point.point)
@@ -50,7 +50,8 @@ class PolarSketcherConsumer(Consumer):
         if self.first_point is None:
             self._move_to_new_path(point)
 
-        self._add_point_to_sketcher((amplitude_pos, angle_pos))
+        self._add_point_to_sketcher(
+            (amplitude_pos, angle_pos), point.canvas_size, pen_position)
 
     def _move_to_new_path(self, start_point: ConsumerPoint):
         amplitude_pos, angle_pos = self.polar_sketcher.convert_to_stepper_positions(
