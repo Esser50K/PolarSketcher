@@ -78,6 +78,15 @@ function MainUI() {
     const [searchStartX, setSearchStartX] = useState(0);
     const [searchStartY, setSearchStartY] = useState(0);
 
+    // bitmap image configs
+    const [bitmapProcessingAlgorithm, setBitmapProcessingAlgorithm] = useState("ascii");
+    // ascii specific configs
+    const [asciiWidth, setAsciiWidth] = useState(80);
+    // sin wave specific configs
+    const [pixelWidth, setPixelWidth] = useState(8);
+    const [resolution, setResolution] = useState(.25);
+
+
     const handleSelectImage = (event: React.ChangeEvent<HTMLInputElement>) => {
         console.info("GOT FILE:", typeof (event), event.target.files?.item(0));
         const file = event.target.files?.item(0);
@@ -93,11 +102,13 @@ function MainUI() {
                 setSvgContent(String(reader.result))
             }
             reader.readAsText(file);
+            setImage(undefined);
         } else {
             const fileURL = URL.createObjectURL(file);
             console.info("FILE URL:", fileURL);
             setImage(file);
             setImageURL(fileURL);
+            setSvgContent("");
         }
         setSelectedFile(file.name);
     }
@@ -244,23 +255,28 @@ function MainUI() {
         reader.onloadend = async () => {
             const base64data = reader.result as string;
             body.image = base64data?.replace(/^data:image\/[^;]+;base64,/, "");  // need to remove the stupid prefix
+            body.image_processor = bitmapProcessingAlgorithm
 
             // Send the Base64 string to the backend
-            const resp = await fetch("http://" + document.location.hostname + ":9943/asciify", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(body)
-            })
+            try {
+                const resp = await fetch("http://" + document.location.hostname + ":9943/upload_bitmap", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                })
 
-            if (resp.status !== 200) {
-                alert("failed to upload image: " + await resp.text())
-                return
+                if (resp.status !== 200) {
+                    alert("failed to upload image: " + await resp.text())
+                    return
+                }
+
+                const jsonResp = await resp.json()
+                handleUploadFinish(jsonResp.jobId, jsonResp.svg, body);
+            } catch (error) {
+                console.error("failed to upload image");
             }
-
-            const jsonResp = await resp.json()
-            handleUploadFinish(jsonResp.jobId, jsonResp.svg, body);
         }
     }
 
@@ -271,7 +287,7 @@ function MainUI() {
 
         try {
             const resp = await fetch(
-                "http://" + document.location.hostname + ":9943/upload",
+                "http://" + document.location.hostname + ":9943/upload_svg",
                 {
                     method: 'POST',
                     body: JSON.stringify(body)
@@ -479,55 +495,117 @@ function MainUI() {
             </div>
 
             {/* Toolpath Generation Algo Config */}
-            <div className="m-8">
-                <Divider title="Toolpath Generation Algorithm Config"></Divider>
-                <div className="flex flex-row justify-start items-stretch">
-                    <div className="flex">
-                        <Dropdown
-                            label="toolpath generation algorithm"
-                            options={{
-                                "none": "None",
-                                "lines": "Lines",
-                                "zigzag": "ZigZag",
-                                "rectlines": "RectLines",
-                            }}
-                            onValueChange={(val) => { setToolpathAlgorithm(val) }}
-                        ></Dropdown>
+            {svgContent !== "" ?
+                <>
+                    < div className="m-8">
+                        <Divider title="Toolpath Generation Algorithm Config"></Divider>
+                        <div className="flex flex-row justify-start items-stretch">
+                            <div className="flex">
+                                <Dropdown
+                                    label="toolpath generation algorithm"
+                                    options={{
+                                        "none": "None",
+                                        "lines": "Lines",
+                                        "zigzag": "ZigZag",
+                                        "rectlines": "RectLines",
+                                    }}
+                                    onValueChange={(val) => { setToolpathAlgorithm(val) }}
+                                ></Dropdown>
+                            </div>
+                            <div className="ml-5 flex">
+                                <NumberInput title="line step" default={10} onValueChange={(val) => { setLineStep(parseInt(val)) }}></NumberInput>
+                            </div>
+                            <div className="ml-5 flex">
+                                <RangeInput title="angle" max={360} onValueChange={(val) => { setToolpathAngle(parseInt(val)) }}></RangeInput>
+                            </div>
+                        </div>
                     </div>
-                    <div className="ml-5 flex">
-                        <NumberInput title="line step" default={10} onValueChange={(val) => { setLineStep(parseInt(val)) }}></NumberInput>
-                    </div>
-                    <div className="ml-5 flex">
-                        <RangeInput title="angle" max={360} onValueChange={(val) => { setToolpathAngle(parseInt(val)) }}></RangeInput>
-                    </div>
-                </div>
-            </div>
 
-            {/* Sort Path Algorithm Config*/}
-            <div className="m-8">
-                <Divider title="Sort Path Algorithm Config"></Divider>
-                <div className="flex flex-row justify-start items-stretch">
-                    <div className="flex">
-                        <Dropdown
-                            label="path sorting algorithm"
-                            options={{
-                                "none": "None",
-                                "closest_path": "Simple",
-                                "closest_path_with_reverse": "Simple Variant1",
-                                "closest_path_with_start_anywhere": "Simple Variant2",
-                                "radar_scan": "Radar Scan",
-                            }}
-                            onValueChange={(val) => { setPathSortingAlgorithm(val) }}
-                        ></Dropdown>
+                    {/* Sort Path Algorithm Config*/}
+                    <div className="m-8">
+                        <Divider title="Sort Path Algorithm Config"></Divider>
+                        <div className="flex flex-row justify-start items-stretch">
+                            <div className="flex">
+                                <Dropdown
+                                    label="path sorting algorithm"
+                                    options={{
+                                        "none": "None",
+                                        "closest_path": "Simple",
+                                        "closest_path_with_reverse": "Simple Variant1",
+                                        "closest_path_with_start_anywhere": "Simple Variant2",
+                                        "radar_scan": "Radar Scan",
+                                    }}
+                                    onValueChange={(val) => { setPathSortingAlgorithm(val) }}
+                                ></Dropdown>
+                            </div>
+                            <div className="ml-5 flex">
+                                <NumberInput title="Start X" default={0} max={canvasDimensions.x} onValueChange={(val) => { setSearchStartX(parseInt(val)) }}></NumberInput>
+                            </div>
+                            <div className="ml-5 flex">
+                                <NumberInput title="Start Y" default={0} max={canvasDimensions.y} onValueChange={(val) => { setSearchStartY(parseInt(val)) }}></NumberInput>
+                            </div>
+                        </div>
                     </div>
-                    <div className="ml-5 flex">
-                        <NumberInput title="Start X" default={0} max={canvasDimensions.x} onValueChange={(val) => { setSearchStartX(parseInt(val)) }}></NumberInput>
-                    </div>
-                    <div className="ml-5 flex">
-                        <NumberInput title="Start Y" default={0} max={canvasDimensions.y} onValueChange={(val) => { setSearchStartY(parseInt(val)) }}></NumberInput>
+                </> : null
+            }
+
+            {/* Configs for bitmap images */}
+            {!!image ?
+                <div className="m-8">
+                    <Divider title="Bitmap Transformation Config"></Divider>
+                    <div className="flex flex-row justify-start items-stretch">
+                        <div className="flex">
+                            <Dropdown
+                                label="bitmap transformation algorithm"
+                                options={{
+                                    "ascii": "ascii",
+                                    "sin": "sin",
+                                }}
+                                onValueChange={(val) => { setBitmapProcessingAlgorithm(val) }}
+                            ></Dropdown>
+                        </div>
+
+                        {bitmapProcessingAlgorithm === "ascii" ?
+                            <>
+                                <div className="ml-5 flex">
+                                    <NumberInput
+                                        title="Ascii Width"
+                                        default={asciiWidth}
+                                        min={10}
+                                        max={100}
+                                        onValueChange={(val) => { setAsciiWidth(parseInt(val)) }}
+                                    ></NumberInput>
+                                </div>
+                            </>
+                            : null}
+
+                        {bitmapProcessingAlgorithm === "sin" ?
+                            <>
+                                <div className="ml-5 flex">
+                                    <NumberInput
+                                        title="Pixel Width"
+                                        default={pixelWidth}
+                                        min={1}
+                                        max={100}
+                                        onValueChange={(val) => { setPixelWidth(parseInt(val)) }}
+                                    ></NumberInput>
+                                </div>
+                                <div className="ml-5 flex">
+                                    <NumberInput
+                                        title="Sin Resolution"
+                                        default={resolution}
+                                        min={0.01}
+                                        max={1}
+                                        onValueChange={(val) => { setResolution(parseInt(val)) }}
+                                    ></NumberInput>
+                                </div>
+                            </>
+                            : null}
                     </div>
                 </div>
-            </div>
+                : null
+
+            }
         </div >
     );
 }

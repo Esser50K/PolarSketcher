@@ -255,7 +255,8 @@ function PreviewCanvas(props: CanvasProps) {
                 resizeSVGContent(parseInt(ref.style.width), parseInt(ref.style.height))
               }}
               onResizeStop={(e, direction, ref, delta, position) => {
-                resizeSVGContent(parseInt(ref.style.width), parseInt(ref.style.height));
+                resize(parseInt(ref.style.width), parseInt(ref.style.height));
+                // resizeSVGContent(parseInt(ref.style.width), parseInt(ref.style.height));
                 // ref.style.minWidth = String(contentDimensions.width)
                 // ref.style.minHeight = String(contentDimensions.height)
               }}
@@ -264,9 +265,9 @@ function PreviewCanvas(props: CanvasProps) {
                 setContentPosition({ x: d.x, y: d.y })
               }}
               onDragStop={(e, d) => {
-                // if (props.onPositionUpdate) {
-                //   props.onPositionUpdate({ x: d.x, y: d.y })
-                // }
+                if (props.onPositionUpdate) {
+                  props.onPositionUpdate({ x: d.x, y: d.y })
+                }
                 setContentPosition({ x: d.x, y: d.y })
               }}
 
