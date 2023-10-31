@@ -66,7 +66,8 @@ class PolarSketcherConsumer(Consumer):
         if abs(move_destination - current_pos) < 0.1:
             return
 
-        for point in gen_intermediate_points(current_pos, (amplitude_pos, angle_pos)):
+        for point in gen_intermediate_points((status.amplitudeStepperPos, status.angleStepperPos),
+                                             (amplitude_pos, angle_pos)):
             self._add_point_to_sketcher(
                 point, start_point.canvas_size, pen_position=0)
 

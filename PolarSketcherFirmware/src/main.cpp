@@ -565,7 +565,7 @@ void setup()
   penServo.attach(penServoPin);
   penServo.write(0);
 
-  Serial.println("SETUP DONE");
+  serialWriteln("SETUP DONE");
 }
 
 void loop()

@@ -132,11 +132,12 @@ class PolarSketcherInterface:
             self.stop()
             return
 
-        self.serial = serial.Serial(self.port, self.baud_rate)
-        self.status = Status()
         self.__command_processed_event.clear()
         self.__setup_done_event.clear()
+        self.status = Status()
         self.__stop = False
+
+        self.serial = serial.Serial(self.port, self.baud_rate)
         self.__serial_reader = Thread(
             target=self.__process_serial, daemon=True)
         self.__serial_reader.start()
@@ -165,6 +166,7 @@ class PolarSketcherInterface:
             try:
                 start_time = time.time()
                 serial._timeout = 1
+                self.serial.timeout = 1
                 received += self.serial.read()
                 if not received.endswith(b'\n'):
                     if time.time() - start_time > 1:
