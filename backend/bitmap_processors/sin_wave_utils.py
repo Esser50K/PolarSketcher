@@ -180,7 +180,7 @@ def draw_sin_along_path(follow_path: Path, sin_state: SinState, image: np.ndarra
         translated_offset_point = follow_path_start_point + rotated_point
         offset_path_points.append(translated_offset_point)
 
-    max_path_len = 1000
+    max_path_len = 100
     offset_path = Path()
     total_length = 0
     for i in range(len(offset_path_points) - 1):
