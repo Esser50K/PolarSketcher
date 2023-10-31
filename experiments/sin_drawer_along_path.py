@@ -8,22 +8,25 @@ from math import sin, pi
 from functools import lru_cache
 from dataclasses import dataclass
 
+
 def frange(start, stop, increment=1.0):
     current = start
     while current < stop:
         yield current
         current += increment
 
-def resize_image(image: np.ndarray, height: int):    
+
+def resize_image(image: np.ndarray, height: int):
     # Compute the aspect ratio
     aspect_ratio = float(image.shape[1]) / float(image.shape[0])
-    
+
     # Calculate the new width based on the target height and original aspect ratio
     width = int(height * aspect_ratio)
-    
+
     # Resize the image
     resized_image = cv2.resize(image, (width, height))
     return resized_image
+
 
 @lru_cache
 def get_range_val(start, end, increment, idx):
@@ -39,10 +42,10 @@ class DrawingParams():
 
 
 class SinState:
-    def __init__(self, amplitude = 1,
-                       frequency = 1,
-                       phase = 0,
-                       offset = 0):
+    def __init__(self, amplitude=1,
+                 frequency=1,
+                 phase=0,
+                 offset=0):
         self.amplitude = amplitude
         self.frequency = frequency
         self.phase = phase
@@ -59,19 +62,20 @@ class SinState:
         self.phase += (self.frequency * x)
 
         return complex(self.current_x, (self.amplitude * sin(self.phase)) + self.offset)
-    
+
     def get_current_point(self) -> complex:
         return complex(self.current_x, (self.amplitude * sin(self.phase)) + self.offset)
-    
+
     def set_target_amplitude(self, target_amplitude):
         self.target_amplitude = target_amplitude
 
     def set_target_frequency(self, target_frequency):
         self.target_frequency = target_frequency
 
-def generate_horizontal_follow_paths(image: np.ndarray, pixel_width = 1):
+
+def generate_horizontal_follow_paths(image: np.ndarray, pixel_width=1):
     path = Path()
-    
+
     for row in range(image.shape[0]):
         height = (row*pixel_width)+(pixel_width/2)
         width = image.shape[1]*pixel_width
@@ -90,9 +94,10 @@ def generate_horizontal_follow_paths(image: np.ndarray, pixel_width = 1):
         line = Line(start_point, end_point)
         yield Path(line)
 
-def generate_connecting_follow_paths(image: np.ndarray, pixel_width = 1):
+
+def generate_connecting_follow_paths(image: np.ndarray, pixel_width=1):
     path = Path()
-    
+
     for row in range(image.shape[0]):
         height = (row*pixel_width)+(pixel_width/2)
         width = image.shape[1]*pixel_width
@@ -112,33 +117,35 @@ def generate_connecting_follow_paths(image: np.ndarray, pixel_width = 1):
         path.append(line)
 
         connection_start_point = line.point(1)
-        connection_end_point = complex(width if going_right else 0, connection_start_point.imag + pixel_width)
-        
+        connection_end_point = complex(
+            width if going_right else 0, connection_start_point.imag + pixel_width)
+
         control1_offset = complex(pixel_width * (1 if going_right else -1), 0)
         control2_offset = control1_offset + complex(0, pixel_width)
         control1 = connection_start_point + control1_offset
         control2 = connection_start_point + control2_offset
 
-        connection_curve = CubicBezier(line.point(1), control1, control2, connection_end_point)
+        connection_curve = CubicBezier(line.point(
+            1), control1, control2, connection_end_point)
         path.append(connection_curve)
-    
+
     yield path
+
 
 def get_target_amplitude_and_frequency(image: np.ndarray, point: complex, pixel_width: float,
                                        max_amplitude, max_frequency):
     try:
-        pixel_brightness = image[int(point.imag/pixel_width), int(point.real/pixel_width)]
+        pixel_brightness = image[int(
+            point.imag/pixel_width), int(point.real/pixel_width)]
         target_sin_amplitude = get_range_val(0, max_amplitude,
-                                                max_amplitude/255,
-                                                pixel_brightness)
+                                             max_amplitude/255,
+                                             pixel_brightness)
         target_sin_frequency = get_range_val(0, max_frequency,
-                                                max_frequency/255,
-                                                pixel_brightness)
+                                             max_frequency/255,
+                                             pixel_brightness)
         return target_sin_amplitude, target_sin_frequency
     except:
         return max_amplitude/2, max_frequency/2
-
-
 
 
 def draw_sin_along_path(follow_path: Path, sin_state: SinState, image: np.ndarray, drawing_params: DrawingParams):
@@ -165,14 +172,16 @@ def draw_sin_along_path(follow_path: Path, sin_state: SinState, image: np.ndarra
         offset_point = sin_state.move_by(vec_len)
         offset_point = complex(0, offset_point.imag)
 
-        rotated_x = np.cos(vec_angle)*(offset_point.real) - np.sin(vec_angle)*(offset_point.imag)
-        rotated_y = np.sin(vec_angle)*(offset_point.real) + np.cos(vec_angle)*(offset_point.imag)
+        rotated_x = np.cos(vec_angle)*(offset_point.real) - \
+            np.sin(vec_angle)*(offset_point.imag)
+        rotated_y = np.sin(vec_angle)*(offset_point.real) + \
+            np.cos(vec_angle)*(offset_point.imag)
         rotated_point = complex(rotated_x, rotated_y)
 
         translated_offset_point = follow_path_start_point + rotated_point
         offset_path_points.append(translated_offset_point)
 
-    max_path_len = 100
+    max_path_len = 10000
     offset_path = Path()
     total_length = 0
     for i in range(len(offset_path_points)-1):
@@ -197,16 +206,28 @@ class DrawingParams():
     max_frequency: float
 
 
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Convert a bitmap image to an SVG representation made of sine waves.')
+    parser = argparse.ArgumentParser(
+        description='Convert a bitmap image to an SVG representation made of sine waves.')
     parser.add_argument('input_path', type=str, help='Path to the input image')
-    parser.add_argument('--output-path', type=str, default="out.svg",  help='Path to save the resized image')
-    parser.add_argument('--height', type=int, default=160,  help='Target height for the resized image')
-    parser.add_argument('--pixel-width', type=float, default=4, help='Width of a pixel')
-    parser.add_argument('--resolution', type=float, default=.1, help='Resolution of the sin graph function')
-    parser.add_argument('--max-amplitude', type=float, default=2, help='Max amplitude of individual sin waves')
-    parser.add_argument('--max-frequency', type=float, default=5, help='Max frequency of individual sin waves')
+    parser.add_argument('--output-path', type=str,
+                        default="out.svg",
+                        help='Path to save the resized image')
+    parser.add_argument('--height', type=int,
+                        default=120,
+                        help='Target height for the resized image')
+    parser.add_argument('--pixel-width', type=float,
+                        default=16,
+                        help='Width of a pixel')
+    parser.add_argument('--resolution', type=float,
+                        default=.25,
+                        help='Resolution of the sin graph function')
+    parser.add_argument('--max-amplitude', type=float,
+                        default=8,
+                        help='Max amplitude of individual sin waves')
+    parser.add_argument('--max-frequency', type=float,
+                        default=2,
+                        help='Max frequency of individual sin waves')
     args = parser.parse_args()
 
     image = cv2.imread(args.input_path)

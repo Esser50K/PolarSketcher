@@ -58,10 +58,17 @@ class PolarSketcherConsumer(Consumer):
             start_point.canvas_size,
             start_point.point)
         status = self.polar_sketcher.update_status()
-        current_pos = (status.amplitudeStepperPos,
-                       status.angleStepperPos)
+        current_pos = complex(status.amplitudeStepperPos,
+                              status.angleStepperPos)
+        move_destination = complex(amplitude_pos, angle_pos)
+
+        # if we're already super close to the point don't lift the pen
+        if abs(move_destination - current_pos) < 0.1:
+            return
+
         for point in gen_intermediate_points(current_pos, (amplitude_pos, angle_pos)):
-            self._add_point_to_sketcher(point)
+            self._add_point_to_sketcher(
+                point, start_point.canvas_size, pen_position=0)
 
     def _add_point_to_sketcher(self, polar_point: Tuple, canvas_size: Tuple, pen_position: int):
         amp_vel, angle_vel = self.calculate_velocities(
