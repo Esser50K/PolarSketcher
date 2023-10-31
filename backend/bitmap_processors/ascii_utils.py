@@ -59,10 +59,8 @@ def image_to_ascii_svg(base64_image,
                                (line[1][0] + (i * size_of_space), line[1][1] + offset))
                 char_path.append(Line(start=complex(offset_line[0][0], offset_line[0][1]),
                                       end=complex(offset_line[1][0], offset_line[1][1])))
-            svg_chars.append(char_path)
+            yield char_path
         offset += size_of_space * 2
-
-    return svg_chars
 
 
 if __name__ == '__main__':

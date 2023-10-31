@@ -1,5 +1,5 @@
 import svg_parse_utils
-from typing import List, Tuple
+from typing import List, Tuple, Generator
 from svgpathtools import Path, Line
 from enum import Enum
 from toolpath_generation.horizontal_lines import horizontal_lines
@@ -104,6 +104,8 @@ class PathGenerator:
         self.toolpath_line_step = 10
         self.toolpath_angle = 0
 
+        self.path_generator: Generator[Tuple, None, None] = None
+
     def load_svg(self, svg: str):
         _, all_paths = svg_parse_utils.parse(svg, self.canvas_size)
         self.add_paths(all_paths)
@@ -145,6 +147,9 @@ class PathGenerator:
     def set_toolpath_angle(self, angle: int):
         self.toolpath_angle = angle
 
+    def set_path_generator(self, path_generator: Generator[Tuple, None, None]):
+        self.path_generator = path_generator
+
     def generate_points(self):
         render_scale = self.render_scale
         if self.render_size != (0, 0):
@@ -152,6 +157,24 @@ class PathGenerator:
             render_scale_height = self.render_size[1] / self.canvas_size[1]
             render_scale *= max(render_scale_width, render_scale_height)
 
+        point_generator = self.generate_points_from_paths
+        if len(self.paths) == 0 and self.path_generator is not None:
+            point_generator = self.generate_points_from_generator
+
+        for point in point_generator(render_scale):
+            yield point
+
+    def generate_points_from_generator(self, render_scale):
+        for path in self.path_generator:
+            for point in self.__get_all_points(paths=[path],
+                                               canvas_size=self.canvas_size,
+                                               render_translate=self.offset,
+                                               render_scale=render_scale,
+                                               rotation=self.rotation,
+                                               toolpath_rotation=self.toolpath_angle):
+                yield point
+
+    def generate_points_from_paths(self, render_scale):
         paths = self.paths.copy()
         if self.toolpath_generation_algorithm is not ToolpathAlgorithm.NONE:
             toolpath_algorithm_func = _get_toolpath_algo_func(

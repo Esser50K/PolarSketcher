@@ -72,9 +72,9 @@ def asciify():
     if processor not in processor_to_func.keys():
         return BadRequest(f"no processor for '{processor}'")
 
-    all_paths = processor_to_func[processor](imageb64)
+    image_processor = processor_to_func[processor](imageb64)
     path_generator = init_path_generator(params)
-    path_generator.add_paths(all_paths)
+    path_generator.set_path_generator(image_processor)
     job_id = job_manager.start_drawing_job(path_generator, params["dryrun"])
 
     response = {

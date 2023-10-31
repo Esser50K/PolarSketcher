@@ -218,7 +218,8 @@ def image_to_sin_wave(base64_image,
     n_lines = int(image.shape[0] * canvas_width_to_img_ratio / pixel_width)
 
     max_amplitude = pixel_width / 2
-    return _image_to_sin_wave(image, n_lines, pixel_width, max_amplitude, max_frequency, resolution)
+    for path in _image_to_sin_wave(image, n_lines, pixel_width, max_amplitude, max_frequency, resolution):
+        yield path
 
 
 def _image_to_sin_wave(image: np.ndarray,
@@ -230,19 +231,15 @@ def _image_to_sin_wave(image: np.ndarray,
     image = resize_image(image, n_lines)  # adjust height
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # make it grayscale
 
-    all_lines: List[Path] = []
     drawing_params = DrawingParams(resolution,
                                    pixel_width,
                                    max_amplitude,
                                    max_frequency)
 
-    all_lines = []
     for path in generate_connecting_follow_paths(image, pixel_width=drawing_params.pixel_width):
         sin_state = SinState(.1, 1, 0, 0)
         for sin_path in draw_sin_along_path(path, sin_state, image, drawing_params):
-            all_lines.append(sin_path)
-
-    return all_lines
+            yield sin_path
 
 
 if __name__ == "__main__":
