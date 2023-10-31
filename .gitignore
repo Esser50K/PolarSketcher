@@ -20,8 +20,19 @@ ui/build
 .env.test.local
 .env.production.local
 .idea
-backend/old_experiments
+.vscode*
 
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+backend/old_experiments
+mongodb
+test_svgs
+polar_sketcher_venv*
+
+# pcb files
+pcb/fp-info-cache
+pcb/polar_sketcher-backups*
+pcb/gerber*
+gerber*
