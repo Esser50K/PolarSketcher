@@ -1,0 +1,15 @@
+"Id";"Designator";"Package";"Quantity";"Designation";"Supplier and ref";
+1;"C2,C1";"CP_Radial_D8.0mm_P5.00mm";2;"100u";;;
+2;"A2,A1";"Pololu_Breakout-16_15.2x20.3mm";2;"Pololu_Breakout_A4988";;;
+3;"R4,R2,R1,R3";"R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal";4;"330";;;
+4;"J11";"PinHeader_1x05_P2.54mm_Vertical";1;"ENCODER";;;
+5;"J5";"PinSocket_1x15_P2.54mm_Vertical";1;"ESP_H_2";;;
+6;"J4";"PinSocket_1x15_P2.54mm_Vertical";1;"ESP_H_1";;;
+7;"J8";"PinHeader_1x04_P2.54mm_Vertical";1;"STEPPER_2";;;
+8;"J9";"PinHeader_1x02_P2.54mm_Vertical";1;"MOTOR_POWER";;;
+9;"J3";"PinHeader_1x04_P2.54mm_Vertical";1;"STEPPER_1";;;
+10;"J7";"PinHeader_1x02_P2.54mm_Vertical";1;"LIMIT_4";;;
+11;"J6";"PinHeader_1x02_P2.54mm_Vertical";1;"LIMIT_2";;;
+12;"J2";"PinHeader_1x02_P2.54mm_Vertical";1;"LIMIT_3";;;
+13;"J1";"PinHeader_1x02_P2.54mm_Vertical";1;"LIMIT_1";;;
+14;"J10";"PinHeader_1x03_P2.54mm_Vertical";1;"SERVO_PINS";;;
