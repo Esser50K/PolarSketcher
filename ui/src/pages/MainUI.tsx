@@ -84,6 +84,8 @@ function MainUI() {
     const [asciiWidth, setAsciiWidth] = useState(80);
     // sin wave specific configs
     const [pixelWidth, setPixelWidth] = useState(8);
+    const [maxSinAmplitude, setMaxSinAmplitude] = useState(4);
+    const [maxSinFrequency, setMaxSinFrequency] = useState(2);
     const [resolution, setResolution] = useState(.25);
 
 
@@ -256,6 +258,14 @@ function MainUI() {
             const base64data = reader.result as string;
             body.image = base64data?.replace(/^data:image\/[^;]+;base64,/, "");  // need to remove the stupid prefix
             body.image_processor = bitmapProcessingAlgorithm
+            body.ascii_processor_args = {
+                "ascii_width": asciiWidth
+            }
+            body.sin_processor_args = {
+                "pixel_width": pixelWidth,
+                "max_amplitude": maxSinAmplitude,
+                "resolution": resolution,
+            }
 
             // Send the Base64 string to the backend
             try {
@@ -588,6 +598,24 @@ function MainUI() {
                                         min={1}
                                         max={100}
                                         onValueChange={(val) => { setPixelWidth(parseInt(val)) }}
+                                    ></NumberInput>
+                                </div>
+                                <div className="ml-5 flex">
+                                    <NumberInput
+                                        title="Max Amplitude"
+                                        default={maxSinAmplitude}
+                                        min={1}
+                                        max={100}
+                                        onValueChange={(val) => { setMaxSinAmplitude(parseInt(val)) }}
+                                    ></NumberInput>
+                                </div>
+                                <div className="ml-5 flex">
+                                    <NumberInput
+                                        title="Max Frequency"
+                                        default={maxSinFrequency}
+                                        min={1}
+                                        max={100}
+                                        onValueChange={(val) => { setMaxSinFrequency(parseInt(val)) }}
                                     ></NumberInput>
                                 </div>
                                 <div className="ml-5 flex">

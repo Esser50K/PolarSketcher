@@ -212,6 +212,7 @@ class DrawingParams():
 def image_to_sin_wave(base64_image,
                       canvas_width=513,
                       pixel_width=8,
+                      max_amplitude=4,
                       max_frequency=2,
                       resolution=.25):
     img_data = base64.b64decode(base64_image)
@@ -221,7 +222,6 @@ def image_to_sin_wave(base64_image,
     canvas_width_to_img_ratio = canvas_width / image.shape[1]
     n_lines = int(image.shape[0] * canvas_width_to_img_ratio / pixel_width)
 
-    max_amplitude = pixel_width / 2
     for path in _image_to_sin_wave(image, n_lines, pixel_width, max_amplitude, max_frequency, resolution):
         yield path
 

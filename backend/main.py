@@ -63,16 +63,16 @@ def asciify():
 
     imageb64 = params["image"]
     processor = params["image_processor"]
-    print("PROCESSOR:", processor)
     processor_to_func = {
         "ascii": image_to_ascii_svg,
         "sin": image_to_sin_wave,
     }
+    processor_args = params[processor + "_processor_args"]
 
     if processor not in processor_to_func.keys():
         return BadRequest(f"no processor for '{processor}'")
 
-    image_processor = processor_to_func[processor](imageb64)
+    image_processor = processor_to_func[processor](imageb64, **processor_args)
     path_generator = init_path_generator(params)
     path_generator.set_path_generator(image_processor)
     job_id = job_manager.start_drawing_job(path_generator, params["dryrun"])
