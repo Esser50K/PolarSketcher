@@ -21,6 +21,7 @@ RUN apt-get update && \
     libavcodec58 \
     libavformat58 \
     libswscale5 && \
+    libopenblas-dev \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

@@ -176,7 +176,8 @@ def read_from_serial(connection: serial.Serial):
                 print("serial:", line)
         except Exception as e:
             print("stopped reading from serial because:", e)
-            return
+            time.sleep(1)
+            continue
 
 
 def encode_int(val: int):
@@ -206,8 +207,12 @@ def main():
     try:
         port = find_serial_port()
         serial_conn = serial.Serial(port, 115200)
+        serial_conn.setDTR(False)
+        time.sleep(.1)
+        serial_conn.setDTR(True)
         read_thread = Thread(target=read_from_serial, args=(serial_conn,))
         read_thread.start()
+
         while True:
             try:
                 command = Command(int(input()))

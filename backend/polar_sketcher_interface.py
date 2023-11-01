@@ -138,13 +138,17 @@ class PolarSketcherInterface:
         self.__stop = False
 
         self.serial = serial.Serial(self.port, self.baud_rate)
+        # cannot assume that that serial will always reset, so do it here
+        self.serial.setDTR(False)
+        time.sleep(.1)
+        self.serial.setDTR(True)
+
         self.__serial_reader = Thread(
             target=self.__process_serial, daemon=True)
         self.__serial_reader.start()
         self.__needs_retry = False
         self.__last_sent_msg = b''
 
-        # on the raspberrypi it always misses this message
         self.__setup_done_event.wait()
         self.__initilised = True
 
