@@ -5,7 +5,7 @@
 
 int serialOutputWriteIndex = 0;
 int serialOutputSendIndex = 0;
-char serialOutputBuffer[500];
+char serialOutputBuffer[2000];
 
 void sendOutput()
 {
@@ -94,14 +94,14 @@ void serialWriteln(long value)
 void serialWrite(int64_t value)
 {
     char buffer[32];
-    snprintf(buffer, sizeof(buffer), "%d", value);
+    snprintf(buffer, sizeof(buffer), "%" PRId64, value);
     serialWrite(buffer);
 }
 
 void serialWriteln(int64_t value)
 {
     char buffer[32];
-    snprintf(buffer, sizeof(buffer), "%d", value);
+    snprintf(buffer, sizeof(buffer), "%" PRId64, value);
     serialWrite(buffer);
     serialWrite("\n");
 }

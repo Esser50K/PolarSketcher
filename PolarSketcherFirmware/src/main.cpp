@@ -91,11 +91,10 @@ bool home()
 
   if (zeroAnglePressed)
   {
-    angleStepper->setPosition(0);
-    angleStepper->setTargetPosition(0);
-
     // also reset encoder
     angleEncoder.setCount(0);
+    angleStepper->setPosition(0);
+    angleStepper->setTargetPosition(0);
   }
   else
   {
@@ -226,10 +225,11 @@ bool draw()
     {
       float stepsPerEncoderUnit = maxAnglePos / float(maxEncoderCount);
       long positionDiff = encoderAnglePos - angleStepper->getPosition();
-      if (positionDiff > stepsPerEncoderUnit)
+      // Uncomment to enable angle correction
+      // if (positionDiff > stepsPerEncoderUnit)
+      if (false)
       {
-        // Uncomment to enable angle correction
-        // adjustingAnglePos = true;
+        adjustingAnglePos = true;
       }
       else
       {
