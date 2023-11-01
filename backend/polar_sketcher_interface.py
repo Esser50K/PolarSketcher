@@ -144,7 +144,8 @@ class PolarSketcherInterface:
         self.__needs_retry = False
         self.__last_sent_msg = b''
 
-        self.__setup_done_event.wait()
+        # on the raspberrypi it always misses this message
+        # self.__setup_done_event.wait()
         self.__initilised = True
 
     def stop(self, wait=True):

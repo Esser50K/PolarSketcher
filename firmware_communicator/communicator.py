@@ -1,15 +1,18 @@
+import os
 import time
 import serial
 import struct
 from enum import Enum
 from threading import Thread, Event
 
-CMD_PROCESSED_SUCCESSFULLY_MSG = "CMD PROCESSED SUCCESSFULLY"
-CMD_PROCESSING_FAILURE_MSG = "CMD PROCESSING FAILURE"
+CMD_PROCESSED_SUCCESSFULLY_MSG = "OK"
+CMD_PROCESSING_FAILURE_MSG = "FAIL"
+SETUP_DONE_MSG = "SETUP DONE"
 STATUS_START_MSG = "STATUS START"
 UNRECOGNIZED_CMD_MSG = "DID NOT RECOGNIZE COMMAND TYPE"
 CHECKSUM_MISMATCH = "CHECKSUM MISMATCH"
 CMD_PROCESSED_EVENT = Event()
+
 
 class Mode(Enum):
     IDLE = 0
@@ -105,6 +108,7 @@ class Status:
 
         return out_str
 
+
 def get_calib_msg():
     msg = b''
     # travelable distance steps
@@ -132,16 +136,26 @@ def get_calib_msg():
     # serial_conn.write(encode_int(1236))
 
     for i, c in enumerate(msg):
-        print(i+4, ":", c)
+        print(i + 4, ":", c)
     print(msg, len(msg))
     return msg
 
+
 def read_from_serial(connection: serial.Serial):
-    cmd_processed_msg = "CMD PROCESSED"
-    status_start_msg = "STATUS START"
+    received = b''
     while True:
         try:
-            line = connection.readline().split(b'\r')[0]
+            start_time = time.time()
+            connection.timeout = 1
+            received += connection.read()
+            if not received.endswith(b'\n'):
+                if time.time() - start_time > 1:
+                    # this means a timeout occurred, let's see whats in the buffer
+                    print("TIMOUT, CURRENT BUFFER:", str(received))
+                continue
+
+            line = received.split(b'\n')[0]
+            received = b''
 
             try:
                 line = line.decode("utf-8")
@@ -156,30 +170,46 @@ def read_from_serial(connection: serial.Serial):
                 status = Status()
                 status.update_status(connection)
                 print(status)
+            elif line == SETUP_DONE_MSG:
+                print("SETUP DONE")
             elif line == UNRECOGNIZED_CMD_MSG:
                 # TODO implement resyncing if necessary
                 print("NEEDS RESYNC")
                 pass
-
-            print("serial:", line)
+            else:
+                print("serial:", line)
         except Exception as e:
             print("stopped reading from serial because:", e)
             return
-        
+
+
 def encode_int(val: int):
     return val.to_bytes(4, 'little', signed=True)
+
 
 def encode_float(val: float):
     return struct.pack("<f", val)
 
+
 def write_command(serial: serial.Serial, cmd: bytes):
     serial.write(b'<<<' + cmd + b'>>>')
+
+
+def find_serial_port():
+    default = '/dev/cu.usbserial-0001'
+    devices = os.listdir('/dev/')
+    for device in devices:
+        if device.startswith(('ttyACM', 'ttyUSB', 'ttyS', 'cu.usbserial')):
+            return '/dev/' + device
+    return default
+
 
 def main():
     serial_conn = None
     read_thread = None
     try:
-        serial_conn = serial.Serial('/dev/cu.usbserial-0001', 115200)
+        port = find_serial_port()
+        serial_conn = serial.Serial(port, 115200)
         read_thread = Thread(target=read_from_serial, args=(serial_conn,))
         read_thread.start()
         while True:
@@ -212,11 +242,11 @@ def main():
                     msg += encode_int(angle_velocity)
 
                     checksum = (amplitude % 123) + \
-                            (angle % 123) + \
-                            (pen % 123) + \
-                            (amplitude_velocity % 123) + \
-                            (angle_velocity % 123)
-                    
+                        (angle % 123) + \
+                        (pen % 123) + \
+                        (amplitude_velocity % 123) + \
+                        (angle_velocity % 123)
+
                     msg += encode_int(checksum)
                 elif command == Command.GET_STATUS:
                     # status = Status()
