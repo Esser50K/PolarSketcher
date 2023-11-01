@@ -28,6 +28,7 @@ class PolarSketcherConsumer(Consumer):
                 continue
             break
         self.polar_sketcher.set_mode(Mode.HOME)
+        self.polar_sketcher.wait_for_idle()
         self.polar_sketcher.stop()
 
     def consume(self, consumer_point: ConsumerPoint):

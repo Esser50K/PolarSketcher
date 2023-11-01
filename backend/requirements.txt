@@ -12,5 +12,6 @@ MarkupSafe
 opencv-python-headless
 Hershey-Fonts
 scour
+numpy
 git+https://github.com/meerk40t/svgelements
 git+https://github.com/mathandy/svgpathtools.git
