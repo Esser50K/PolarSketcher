@@ -145,13 +145,9 @@ def read_from_serial(connection: serial.Serial):
     received = b''
     while True:
         try:
-            start_time = time.time()
             connection.timeout = 1
             received += connection.read()
             if not received.endswith(b'\n'):
-                if time.time() - start_time > 1:
-                    # this means a timeout occurred, let's see whats in the buffer
-                    print("TIMOUT, CURRENT BUFFER:", str(received))
                 continue
 
             line = received.split(b'\n')[0]

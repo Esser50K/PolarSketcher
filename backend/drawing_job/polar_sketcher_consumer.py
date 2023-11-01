@@ -40,7 +40,6 @@ class PolarSketcherConsumer(Consumer):
                 self.first_point, pen_position=30)
         elif point == PATH_END_COMMAND:
             self.first_point = None
-            self.last_point = None
 
     def _consume_point(self, point: ConsumerPoint, pen_position: int):
         amplitude_pos, angle_pos = self.polar_sketcher.convert_to_stepper_positions(
@@ -58,13 +57,6 @@ class PolarSketcherConsumer(Consumer):
             start_point.canvas_size,
             start_point.point)
         status = self.polar_sketcher.update_status()
-        current_pos = complex(status.amplitudeStepperPos,
-                              status.angleStepperPos)
-        move_destination = complex(amplitude_pos, angle_pos)
-
-        # if we're already super close to the point don't lift the pen
-        if abs(move_destination - current_pos) < 0.1:
-            return
 
         for point in gen_intermediate_points((status.amplitudeStepperPos, status.angleStepperPos),
                                              (amplitude_pos, angle_pos)):
@@ -120,10 +112,8 @@ def gen_intermediate_points(start_point: Tuple, end_point: Tuple, points_per_uni
     end_amp, end_angle = end_point
 
     # Calculate the distance between the start and end points
-    distance = (((end_amp - start_amp) ** 2) +
-                ((end_angle - start_angle) ** 2)) ** 0.5
+    distance = abs(complex(*end_point) - complex(*start_point))
     if distance == 0:
-        yield end_point
         return
 
     # Calculate the number of points to generate
