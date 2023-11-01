@@ -1,7 +1,7 @@
 FROM balenalib/raspberry-pi:bullseye
 
 RUN apt-get update && \
-    apt-get install -y \
+    apt-get install -y --fix-missing \
     git \
     python3 python3-pip \
     # dependencies for opencv
