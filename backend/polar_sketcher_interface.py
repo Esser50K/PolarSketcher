@@ -277,11 +277,17 @@ class PolarSketcherInterface:
             print("position not processed yet")
             self.write_message(msg)
 
+        # this is un expected retry when the buffer
+        # on the controller side is full,
+        # for now just keep trying
         while self.__needs_retry:
+            time.sleep(.1)
             print("needs retry")
             print(self.update_status())
             self.write_message(msg)
             self.__needs_retry = False
+            # TODO if the command is not being processed at all
+            # the controller has to be reset
             while not self.__wait_for_command_processing():
                 print("position not processed yet")
 

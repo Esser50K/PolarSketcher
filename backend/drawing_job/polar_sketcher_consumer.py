@@ -43,30 +43,42 @@ class PolarSketcherConsumer(Consumer):
             self.first_point = None
 
     def _consume_point(self, point: ConsumerPoint, pen_position: int):
-        amplitude_pos, angle_pos = self.polar_sketcher.convert_to_stepper_positions(
-            point.canvas_size,
-            point.point)
-
         if self.first_point is None:
             self._move_to_new_path(point)
 
+        polar_point = self._convert_to_sketcher_position(
+            point.point, point.canvas_size)
         self._add_point_to_sketcher(
-            (amplitude_pos, angle_pos), point.canvas_size, pen_position)
+            polar_point, point.canvas_size, pen_position)
 
-    def _move_to_new_path(self, start_point: ConsumerPoint):
-        amplitude_pos, angle_pos = self.polar_sketcher.convert_to_stepper_positions(
-            start_point.canvas_size,
-            start_point.point)
-        status = self.polar_sketcher.update_status()
+    def _move_to_new_path(self, new_path_start: ConsumerPoint):
+        amplitude_pos, angle_pos = self._convert_to_sketcher_position(
+            new_path_start.point,
+            new_path_start.canvas_size)
 
-        for point in gen_intermediate_points((status.amplitudeStepperPos, status.angleStepperPos),
+        current_pos = self.last_point
+        if current_pos is None:
+            # update status is an expensive operation
+            status = self.polar_sketcher.update_status()
+            current_pos = (status.amplitudeStepperPos, status.angleStepperPos)
+
+        for point in gen_intermediate_points(current_pos,
                                              (amplitude_pos, angle_pos)):
             self._add_point_to_sketcher(
-                point, start_point.canvas_size, pen_position=0)
+                point, new_path_start.canvas_size, pen_position=0)
+
+    def _convert_to_sketcher_position(self, point: Tuple, canvas_size: Tuple):
+        point = (
+            canvas_size[0] - point[0],
+            point[1]
+        )
+        return self.polar_sketcher.convert_to_stepper_positions(
+            canvas_size,
+            point)
 
     def _add_point_to_sketcher(self, polar_point: Tuple, canvas_size: Tuple, pen_position: int):
         amp_vel, angle_vel = self.calculate_velocities(
-            self.last_point, polar_point, canvas_size)
+            self.last_point, polar_point)
         self.polar_sketcher.add_position(
             polar_point[0],  # amplitude
             polar_point[1],  # angle
@@ -80,19 +92,12 @@ class PolarSketcherConsumer(Consumer):
             self.first_point = polar_point
 
     def calculate_velocities(self,
-                             start: Optional[Tuple],
-                             end: Tuple,
-                             canvas_size: Tuple,
+                             start_pos: Optional[Tuple],
+                             end_pos: Tuple,
                              max_stepper_vel=1500):
-        if type(start) is tuple:
-            start_pos = self.polar_sketcher.convert_to_stepper_positions(
-                canvas_size, start)
-        else:
+        if start_pos is None:
             status = self.polar_sketcher.update_status()
             start_pos = (status.amplitudeStepperPos, status.angleStepperPos)
-
-        end_pos = self.polar_sketcher.convert_to_stepper_positions(
-            canvas_size, end)
 
         amp_diff = abs(end_pos[0] - start_pos[0])
         angle_diff = abs(end_pos[1] - start_pos[1])

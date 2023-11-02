@@ -227,7 +227,6 @@ bool draw()
       long positionDiff = encoderAnglePos - angleStepper->getPosition();
       // Uncomment to enable angle correction
       // if (positionDiff > stepsPerEncoderUnit)
-      if (false)
       {
         adjustingAnglePos = true;
       }
