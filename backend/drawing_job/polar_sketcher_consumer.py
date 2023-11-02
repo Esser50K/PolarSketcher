@@ -38,7 +38,7 @@ class PolarSketcherConsumer(Consumer):
                 consumer_point, pen_position=30)
         elif point == CLOSE_PATH_COMMAND:
             self._consume_point(
-                self.first_point, pen_position=30)
+                ConsumerPoint(self.first_point, consumer_point.canvas_size), pen_position=30)
         elif point == PATH_END_COMMAND:
             self.first_point = None
 
@@ -131,6 +131,6 @@ def gen_intermediate_points(start_point: Tuple, end_point: Tuple, points_per_uni
     # Generate intermediate points with uniform spacing
     for i in range(num_points + 1):
         ratio = i / num_points
-        x = start_amp + (end_amp - start_amp) * ratio
-        y = start_angle + (end_angle - start_angle) * ratio
-        yield int(x), int(y)
+        amp = start_amp + (end_amp - start_amp) * ratio
+        angle = start_angle + (end_angle - start_angle) * ratio
+        yield int(amp), int(angle)
