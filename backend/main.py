@@ -94,26 +94,20 @@ def get_updates(ws: WebSocket):
         ws.close()
 
 
-@app.route('/draw_boundary', methods=[POST])
-def draw_boundary():
+@sockets.route('/abort', websocket=True)
+def get_updates(ws: WebSocket):
     try:
-        params = json.loads(request.data)
-    except json.JSONDecodeError:
-        return BadRequest("could not understand request")
+        event = job_manager.add_ws_client(ws)
+        event.wait()
+    except Exception as e:
+        logging.error("failed to decode message:", e)
+        ws.close()
 
-    path_generator = PathGenerator()
-    path_generator.set_canvas_size((CANVAS_WIDTH_MM, CANVAS_HEIGHT_MM))
-    boundary = _generate_boundary_path((CANVAS_WIDTH_MM, CANVAS_HEIGHT_MM),
-                                       params["canvas_size"],
-                                       (PLOTTER_BASE_WIDTH_MM, PLOTTER_BASE_HEIGHT_MM))
-    path_generator.add_paths([boundary])
 
-    polar_sketcher = None
-    if not params["dryrun"]:
-        polar_sketcher = PolarSketcherInterface()
-
-    job_id = job_manager.start_drawing_job(path_generator, polar_sketcher)
-    return job_id
+@app.route('/abort', methods=[POST])
+def draw_boundary():
+    job_manager.stop()
+    return "OK"
 
 
 @app.route('/drawing/save', methods=[POST])

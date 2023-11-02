@@ -89,6 +89,20 @@ function MainUI() {
     const [resolution, setResolution] = useState(.25);
 
 
+    const handleAbort = async () => {
+        const resp = await fetch(
+            "http://" + document.location.hostname + ":9943/abort",
+            {
+                method: 'POST'
+            })
+
+        if (resp.status !== 200) {
+            console.error("failed to abort job: " + await resp.text())
+            return
+        }
+
+    }
+
     const handleSelectImage = (event: React.ChangeEvent<HTMLInputElement>) => {
         console.info("GOT FILE:", typeof (event), event.target.files?.item(0));
         const file = event.target.files?.item(0);
@@ -409,6 +423,13 @@ function MainUI() {
                                         {selectedFile === "" ? "Select Image" : selectedFile}
                                     </label>
                                 </p>
+                            </div>
+                        </div>
+                        <div className="w-full">
+                            <div className="button-base mt-2">
+                                <button
+                                    onClick={handleAbort}>Abort Job
+                                </button>
                             </div>
                         </div>
                     </div>
