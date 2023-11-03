@@ -618,7 +618,7 @@ function MainUI() {
                                         default={pixelWidth}
                                         min={1}
                                         max={100}
-                                        onValueChange={(val) => { setPixelWidth(parseInt(val)) }}
+                                        onValueChange={(val) => { setPixelWidth(parseFloat(val)) }}
                                     ></NumberInput>
                                 </div>
                                 <div className="ml-5 flex">
@@ -627,7 +627,7 @@ function MainUI() {
                                         default={maxSinAmplitude}
                                         min={1}
                                         max={100}
-                                        onValueChange={(val) => { setMaxSinAmplitude(parseInt(val)) }}
+                                        onValueChange={(val) => { setMaxSinAmplitude(parseFloat(val)) }}
                                     ></NumberInput>
                                 </div>
                                 <div className="ml-5 flex">
@@ -636,7 +636,7 @@ function MainUI() {
                                         default={maxSinFrequency}
                                         min={1}
                                         max={100}
-                                        onValueChange={(val) => { setMaxSinFrequency(parseInt(val)) }}
+                                        onValueChange={(val) => { setMaxSinFrequency(parseFloat(val)) }}
                                     ></NumberInput>
                                 </div>
                                 <div className="ml-5 flex">
@@ -645,7 +645,7 @@ function MainUI() {
                                         default={resolution}
                                         min={0.01}
                                         max={1}
-                                        onValueChange={(val) => { setResolution(parseInt(val)) }}
+                                        onValueChange={(val) => { setResolution(parseFloat(val)) }}
                                     ></NumberInput>
                                 </div>
                             </>
