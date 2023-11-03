@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, CanvasHTMLAttributes } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import "../index.css"
 import RangeInput from '../units/RangeInput';
 import "./SimulationCanvas.css"
@@ -11,13 +11,6 @@ interface CanvasProps {
   cutright?: boolean
   points?: [number, number][]
   children?: React.ReactNode
-}
-
-const rndStyle = {
-  border: "1px solid red",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
 }
 
 function SimulationCanvas(props: CanvasProps) {
@@ -85,35 +78,54 @@ function SimulationCanvas(props: CanvasProps) {
     }
 
     props.ws!.onmessage = (event: MessageEvent) => {
-      const update = JSON.parse(event.data);
-      const allPaths: [[number, number]][] = update.payload;
-      const jobId: string = update.job_id;
-
-      let newAccumulatedPaths = accumulatedPaths;
-      if (jobId !== currentJobId) {
-        newAccumulatedPaths = accumulatedPaths.concat(currentJobPaths);
-        setAccumulatedPaths(newAccumulatedPaths);
+      const message = JSON.parse(event.data);
+      switch (message.type) {
+        case "FULL":
+          parseFull(message);
+          break;
+        case "UPDATE":
+          drawnPoints.push(message.point);
+          setDrawnPoints(drawnPoints);
+          break;
+        case "PATH_END":
+          drawnPoints.push([-1, -1]);
+          setDrawnPoints(drawnPoints);
+          setProgressIndex(drawnPoints.length);
+          break;
+        default:
+          console.info("got unknown message:", message)
       }
-
-      setCurrenttJobId(jobId)
-      setCurrentJobPaths(allPaths)
-
-      let allPoints: [number, number][] = [];
-      for (let i = 0; i < newAccumulatedPaths.length; i++) {
-        const path = newAccumulatedPaths[i];
-        allPoints = allPoints.concat(path);
-        allPoints.push([-1, -1]);
-      }
-      for (let i = 0; i < allPaths.length; i++) {
-        const path = allPaths[i];
-        allPoints = allPoints.concat(path);
-        allPoints.push([-1, -1]);
-      }
-
-      setDrawnPoints(allPoints);
-      setProgressIndex(allPoints.length);
     }
   }, [props.ws])
+
+  const parseFull = (message: any) => {
+    const allPaths: [[number, number]][] = message.all_paths;
+    const jobId: string = message.job_id;
+
+    let newAccumulatedPaths = accumulatedPaths;
+    if (jobId !== currentJobId) {
+      newAccumulatedPaths = accumulatedPaths.concat(currentJobPaths);
+      setAccumulatedPaths(newAccumulatedPaths);
+    }
+
+    setCurrenttJobId(jobId)
+    setCurrentJobPaths(allPaths)
+
+    let allPoints: [number, number][] = [];
+    for (let i = 0; i < newAccumulatedPaths.length; i++) {
+      const path = newAccumulatedPaths[i];
+      allPoints = allPoints.concat(path);
+      allPoints.push([-1, -1]);
+    }
+    for (let i = 0; i < allPaths.length; i++) {
+      const path = allPaths[i];
+      allPoints = allPoints.concat(path);
+      allPoints.push([-1, -1]);
+    }
+
+    setDrawnPoints(allPoints);
+    setProgressIndex(allPoints.length);
+  }
 
   useEffect(() => {
     if (!ctx) {
@@ -123,6 +135,8 @@ function SimulationCanvas(props: CanvasProps) {
     if (drawnPoints.length === 0) {
       return;
     }
+
+    ctx.lineWidth = 0.5;
 
     const currentCanvas = canvas.current! as HTMLCanvasElement;
     ctx.clearRect(0, 0, currentCanvas.width, currentCanvas.height);

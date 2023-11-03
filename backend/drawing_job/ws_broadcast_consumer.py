@@ -28,20 +28,21 @@ class WSBroadcastConsumer(Consumer):
         pass
 
     def shutdown(self):
-        self._broadcast(self._msg())
+        self._broadcast(self._msg(PATH_END_COMMAND, "", ""))
         self._close_all_webconnections()
 
-    def _msg(self) -> str:
+    def _msg(self, type: str, key: str, value) -> str:
         return json.dumps({
-            "type": "update",
-            "payload": self.drawn_paths
+            "type": type,
+            key: value
         })
 
     def add_ws_client(self, ws: WebSocket) -> Event:
         unique_origin = ws.origin + str(uuid.uuid4())
         ws_connection = WebsocketConnection(ws)
         self.websockets[unique_origin] = ws_connection
-        self._broadcast(self._msg(), {unique_origin: ws_connection})
+        self._broadcast(self._msg("FULL", "all_paths", self.drawn_paths), {
+                        unique_origin: ws_connection})
 
         return ws_connection.done_event
 
@@ -49,13 +50,13 @@ class WSBroadcastConsumer(Consumer):
         point = consumer_point.point
         if type(point) is tuple:
             self.current_path.append(point)
+            self._broadcast(self._msg("UPDATE", "point", point))
         elif point == CLOSE_PATH_COMMAND:
             pass
         elif point == PATH_END_COMMAND:
             self.drawn_paths.append(copy(self.current_path))
             self.current_path = []
-            if len(self.websockets) > 0:
-                self._broadcast(self._msg())
+            self._broadcast(self._msg(PATH_END_COMMAND, "", ""))
 
     def _broadcast(self, msg: str, clients=None):
         if clients is None:
