@@ -227,13 +227,14 @@ bool draw()
       long positionDiff = encoderAnglePos - angleStepper->getPosition();
       // Uncomment to enable angle correction
       // if (positionDiff > stepsPerEncoderUnit)
-      {
-        adjustingAnglePos = true;
-      }
-      else
-      {
-        angleTargetReached = true;
-      }
+      // {
+      //   adjustingAnglePos = true;
+      // }
+      // else
+      // {
+      //   angleTargetReached = true;
+      // }
+      angleTargetReached = true;
     }
     else
     {

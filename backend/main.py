@@ -1,23 +1,25 @@
 from gevent import monkey
 monkey.patch_all()
 
-from bitmap_processors.ascii_utils import image_to_ascii_svg
-from bitmap_processors.sin_wave_utils import image_to_sin_wave
-from drawing_job.job_manager import DrawingJobManager
-from path_generator import PathGenerator, ToolpathAlgorithm, PathsortAlgorithm, _generate_boundary_path
-from polar_sketcher_interface import PolarSketcherInterface
-from pymongo.collection import Collection
-from pymongo import MongoClient
-from werkzeug.exceptions import BadRequest
-from geventwebsocket.websocket import WebSocket
-from flask_sockets import Sockets, Rule
-from flask_cors import CORS
-from flask import Flask, request, jsonify
 import sys
 import os
 import logging
 import json
 import argparse
+from bitmap_processors.ascii_utils import image_to_ascii_svg
+from bitmap_processors.sin_wave_utils import image_to_sin_wave
+from drawing_job.job_manager import DrawingJobManager
+from path_generator import PathGenerator, ToolpathAlgorithm, PathsortAlgorithm
+from polar_sketcher_interface import PolarSketcherInterface
+from pymongo.collection import Collection
+from pymongo import MongoClient
+from werkzeug.exceptions import BadRequest
+from flask_sockets import Sockets, Rule
+from flask_cors import CORS
+from flask import Flask, request, jsonify
+from gevent import pywsgi
+from geventwebsocket.websocket import WebSocket
+from geventwebsocket.handler import WebSocketHandler
 
 
 app = Flask(__name__)
@@ -85,16 +87,6 @@ def asciify():
 
 
 @sockets.route('/updates', websocket=True)
-def get_updates(ws: WebSocket):
-    try:
-        event = job_manager.add_ws_client(ws)
-        event.wait()
-    except Exception as e:
-        logging.error("failed to decode message:", e)
-        ws.close()
-
-
-@sockets.route('/abort', websocket=True)
 def get_updates(ws: WebSocket):
     try:
         event = job_manager.add_ws_client(ws)
@@ -218,12 +210,9 @@ def main():
             print("failed to connect to mongo DB:", e)
 
     try:
-        from gevent import pywsgi
-        from geventwebsocket.handler import WebSocketHandler
-
         print("Starting WebServer...")
         server = pywsgi.WSGIServer(
-            ('', 9943), app, handler_class=WebSocketHandler)
+            ('', 9943), app, handler_class=WebSocketHandler, spawn=10)
         server.serve_forever()
 
     except KeyboardInterrupt:

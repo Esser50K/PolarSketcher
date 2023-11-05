@@ -1,4 +1,6 @@
 import svg_parse_utils
+from queue import Queue
+from threading import Thread
 from typing import List, Tuple, Generator
 from svgpathtools import Path, Line
 from enum import Enum
@@ -165,14 +167,23 @@ class PathGenerator:
             yield point
 
     def generate_points_from_generator(self, render_scale):
-        for path in self.path_generator:
-            for point in self.__get_all_points(paths=[path],
-                                               canvas_size=self.canvas_size,
-                                               render_translate=self.offset,
-                                               render_scale=render_scale,
-                                               rotation=self.rotation,
-                                               toolpath_rotation=self.toolpath_angle):
-                yield point
+        queue = Queue(100)
+
+        def _generate_points():
+            for path in self.path_generator:
+                for point in self.__get_all_points(paths=[path],
+                                                   canvas_size=self.canvas_size,
+                                                   render_translate=self.offset,
+                                                   render_scale=render_scale,
+                                                   rotation=self.rotation,
+                                                   toolpath_rotation=self.toolpath_angle):
+                    queue.put(point)
+
+        t = Thread(target=_generate_points)
+        t.start()
+
+        while t.is_alive():
+            yield queue.get()
 
     def generate_points_from_paths(self, render_scale):
         paths = self.paths.copy()
