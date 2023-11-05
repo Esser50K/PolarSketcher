@@ -167,9 +167,7 @@ class PathGenerator:
             yield point
 
     def generate_points_from_generator(self, render_scale):
-        queue = Queue(100)
-
-        def _generate_points():
+        def _generate_points(queue: Queue):
             for path in self.path_generator:
                 for point in self.__get_all_points(paths=[path],
                                                    canvas_size=self.canvas_size,
@@ -179,11 +177,8 @@ class PathGenerator:
                                                    toolpath_rotation=self.toolpath_angle):
                     queue.put(point)
 
-        t = Thread(target=_generate_points)
-        t.start()
-
-        while t.is_alive():
-            yield queue.get()
+        for point in _threaded_generation(_generate_points):
+            yield point
 
     def generate_points_from_paths(self, render_scale):
         paths = self.paths.copy()
@@ -203,12 +198,16 @@ class PathGenerator:
                                canvas_size=self.canvas_size,
                                sorting_algo=path_sort_algorithm)
 
-        for point in self.__get_all_points(paths=paths,
-                                           canvas_size=self.canvas_size,
-                                           render_translate=self.offset,
-                                           render_scale=render_scale,
-                                           rotation=self.rotation,
-                                           toolpath_rotation=self.toolpath_angle):
+        def _generate_points(queue: Queue):
+            for point in self.__get_all_points(paths=paths,
+                                               canvas_size=self.canvas_size,
+                                               render_translate=self.offset,
+                                               render_scale=render_scale,
+                                               rotation=self.rotation,
+                                               toolpath_rotation=self.toolpath_angle):
+                queue.put(point)
+
+        for point in _threaded_generation(_generate_points):
             yield point
 
     def __get_all_points(self,
@@ -279,3 +278,12 @@ class PathGenerator:
             scaled_point = point * render_scale
             yield (scaled_point.real + render_translate[0],
                    scaled_point.imag + render_translate[1])
+
+
+def _threaded_generation(target, queue_size=100):
+    queue = Queue(queue_size)
+    t = Thread(target=target, args=(queue,))
+    t.start()
+
+    while t.is_alive():
+        yield queue.get()
