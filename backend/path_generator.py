@@ -285,5 +285,5 @@ def _threaded_generation(target, queue_size=100):
     t = Thread(target=target, args=(queue,))
     t.start()
 
-    while t.is_alive():
+    while t.is_alive() or not queue.empty():
         yield queue.get()
