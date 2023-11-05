@@ -53,7 +53,7 @@ def upload():
     path_generator = init_path_generator(params)
     path_generator.load_svg(params["svg"])
     job_id = job_manager.start_drawing_job(
-        path_generator, params["dryrun"], params["angleCorrection"])
+        path_generator, params["dryrun"], params["angle_correction"])
     return job_id
 
 
@@ -79,7 +79,7 @@ def asciify():
     path_generator = init_path_generator(params)
     path_generator.set_path_generator(image_processor)
     job_id = job_manager.start_drawing_job(
-        path_generator, params["dryrun"], params["angleCorrection"])
+        path_generator, params["dryrun"], params["angle_correction"])
 
     response = {
         "jobId": job_id,
