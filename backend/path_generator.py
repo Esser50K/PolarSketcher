@@ -97,7 +97,6 @@ class PathGenerator:
         self.render_scale = 1.0
         self.render_size = (0, 0)
         self.rotation = 0
-        self.points_per_mm = 1
 
         self.path_sorting_algorithm = PathsortAlgorithm.NONE
         self.path_sort_start_point = complex(0, 0)
@@ -130,9 +129,6 @@ class PathGenerator:
 
     def set_rotation(self, rotation: float):
         self.rotation = rotation
-
-    def set_points_per_mm(self, points_per_mm: int):
-        self.points_per_mm = points_per_mm
 
     def set_pathsort_algorithm(self, path_sorting_algorithm: PathsortAlgorithm):
         self.path_sorting_algorithm = path_sorting_algorithm
@@ -216,8 +212,7 @@ class PathGenerator:
                          render_translate=(0, 0),
                          render_scale=1.0,
                          rotation=0,
-                         toolpath_rotation=0,
-                         points_per_mm=2.0):
+                         toolpath_rotation=0):
         """
         # TODO center bbox
         if center:
@@ -264,7 +259,7 @@ class PathGenerator:
             print("error getting points:", e)
             raise e
 
-        scaled_path_len = path_len * render_scale * 15
+        scaled_path_len = path_len * render_scale
         total_points = int(scaled_path_len)
         if total_points == 0:
             return
