@@ -25,9 +25,9 @@ function CheckboxInput(props: CheckboxInputProps) {
     }, [])
 
     return (
-        <div className="flex flex-row items-center p-1 border-2 rounded-sm bg-gray-200 text-sm text-left">
-            <label className="block text-xs" htmlFor={id}>{props.label && props.label}</label>
-            <input className="block ml-1" id={id} type="checkbox"
+        <div className="flex flex-row justify-items-center place-content-between p-1 border-2 rounded-sm bg-gray-200 text-sm text-left">
+            <label className="flex block text-xs" htmlFor={id}>{props.label && props.label}</label>
+            <input className="flex block ml-1" id={id} type="checkbox"
                 defaultChecked={props.default}
                 onChange={(e) => {
                     setChecked(!checked);

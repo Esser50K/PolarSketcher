@@ -26,12 +26,13 @@ class DrawingJobManager:
     def add_ws_client(self, ws: WebSocket) -> Event:
         return self._ws_broadcast_consumer.add_ws_client(ws)
 
-    def start_drawing_job(self, path_generator: PathGenerator, dryrun=False):
+    def start_drawing_job(self, path_generator: PathGenerator, dryrun=False, angle_correction=True):
         job_id = uuid.uuid4()
 
         consumers = []
         if not dryrun:
-            self._polar_sketcher_interface = PolarSketcherInterface()
+            self._polar_sketcher_interface = PolarSketcherInterface(
+                angle_correction=angle_correction)
             self._polar_sketcher_consumer = PolarSketcherConsumer(
                 self._polar_sketcher_interface)
             consumers.append(self._polar_sketcher_consumer)

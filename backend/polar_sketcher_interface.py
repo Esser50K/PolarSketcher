@@ -28,6 +28,7 @@ class Command(Enum):
     SET_MODE = 2
     CALIBRATE = 3
     ADD_POSITION = 4
+    SET_ANGLE_CORRECTION = 5
 
 
 class Status:
@@ -54,11 +55,12 @@ class Status:
         self.maxAmplitudeButtonPressed = 0
         self.minAngleButtonPressed = 0
         self.maxAngleButtonPressed = 0
+        self.angleCorrectionEnabled = False
 
     def update_status(self, serial_conn: serial.Serial):
         self.currentMode = Mode(int(serial_conn.readline()))
-        self.calibrated = False if int(serial_conn.readline()) == 0 else True
-        self.calibrating = False if int(serial_conn.readline()) == 0 else True
+        self.calibrated = bool(int(serial_conn.readline()))
+        self.calibrating = bool(int(serial_conn.readline()))
 
         self.amplitudeStepperPos = int(serial_conn.readline())
         self.amplitudeStepperTargetPos = int(serial_conn.readline())
@@ -82,6 +84,8 @@ class Status:
         self.maxAmplitudeButtonPressed = int(serial_conn.readline())
         self.minAngleButtonPressed = int(serial_conn.readline())
         self.maxAngleButtonPressed = int(serial_conn.readline())
+
+        self.angleCorrectionEnabled = bool(int(serial_conn.readline()))
 
     def __str__(self) -> str:
         out_str = ""
@@ -296,6 +300,13 @@ class PolarSketcherInterface:
         self.write_message(msg)
         self.__wait_for_command_processing()
         return self.status
+
+    def set_angle_correction(self, value: bool) -> Status:
+        msg = self.__encode_int(Command.SET_ANGLE_CORRECTION.value)
+        msg += self.__encode_int(int(value))
+        self.write_message(msg)
+        self.__wait_for_command_processing()
+        return self.update_status()
 
     def wait_for_idle(self) -> Status:
         while self.update_status().currentMode != Mode.IDLE:

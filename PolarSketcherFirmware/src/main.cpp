@@ -40,6 +40,9 @@ long maxAmplituePos = 0;
 long maxAnglePos = 0;
 long maxEncoderCount = 0;
 
+// feature flags
+bool angleCorrectionEnabled = true;
+
 // declare steppers
 Stepper *amplitudeStepper;
 Stepper *angleStepper;
@@ -203,7 +206,6 @@ int nextPositionToGo = 0;
 position futurePositions[futurePositionsLength];
 
 int stepsSinceCorrection = 0;
-int previousMove = 0;
 const int stepsUntilCorrection = 50;
 bool angleTargetReached = false;
 bool adjustingAnglePos = false;
@@ -220,85 +222,115 @@ bool draw()
   else if (!angleTargetReached)
   {
     // angle position correction routine
-    long encoderAnglePos = encoderPosToAnglePos();
-    if (!adjustingAnglePos)
-    {
-      float stepsPerEncoderUnit = maxAnglePos / float(maxEncoderCount);
-      long positionDiff = encoderAnglePos - angleStepper->getPosition();
-      // Uncomment to enable angle correction
-      // if (positionDiff > stepsPerEncoderUnit)
-      // {
-      //   adjustingAnglePos = true;
-      // }
-      // else
-      // {
-      //   angleTargetReached = true;
-      // }
-      angleTargetReached = true;
-    }
-    else
-    {
-      long encoderTargetPos = anglePosToEncoderPos(angleStepper->getTargetPosition());
-      long encoderPosition = angleEncoder.getCount();
-      // serialWriteln("CORRECTING POS " + String(encoderAnglePos) + " " + String(angleStepper->getPosition()));
-      // serialWriteln("ENCODER POS " + String(encoderPosition) + " " + String(encoderTargetPos));
-
-      if (encoderPosition != encoderTargetPos)
-      {
-        bool goingForward = encoderPosition < encoderTargetPos;
-        bool stepped = angleStepper->singleStepAtSpeed(goingForward);
-        // serialWriteln("STEPPED? " + String(stepped));
-        // serialWriteln("NEW STEPPER POS? " + String(angleStepper->getPosition()));
-      }
-      else
-      {
-        angleTargetReached = true;
-        adjustingAnglePos = false;
-        encoderAnglePos = encoderPosToAnglePos();
-        // serialWriteln("Setting stepper pos to: " + String(encoderAnglePos));
-        angleStepper->setPosition(encoderAnglePos);
-        angleStepper->setTargetPosition(encoderAnglePos);
-      }
-    }
+    angleTargetReached = correctAngle();
   }
   else
   {
-    // check if we have a new position to go to
-    int potentialNextPositionToGo = (nextPositionToGo + 1) % futurePositionsLength;
-    if (potentialNextPositionToGo == nextPositionToPlace)
-    {
-      return false;
-    }
-
-    // set new target
-    nextPositionToGo = potentialNextPositionToGo;
-    position nextPosition = futurePositions[nextPositionToGo];
-    amplitudeStepper->setTargetPosition(nextPosition.amplitudePosition);
-    angleStepper->setTargetPosition(nextPosition.anglePosition);
-    amplitudeStepper->setSpeed(nextPosition.amplitudeVelocity);
-    angleStepper->setSpeed(nextPosition.angleVelocity);
-
-    angleTargetReached = false;
-    adjustingAnglePos = false;
-
-    // count angle steps
-    previousMove = abs(angleStepper->getPosition() - angleStepper->getTargetPosition());
-
-    // put pen in position
-    // the +1 is just because the .read()
-    // returns the last value we wrote -1 ¯\_(ツ)_/¯
-    // if (penServo.read() + 1 != nextPosition.penPosition)
-    if (abs(nextPosition.penPosition - penServo.read()) > 2)
-    {
-      penServo.write(nextPosition.penPosition);
-      // without this delay the plotter starts
-      // moving before the pen has reached the bottom
-      delay(150);
-    }
+    loadNewPosition();
   }
 
   return false;
 }
+
+void loadNewPosition()
+{
+  // check if we have a new position to go to
+  int potentialNextPositionToGo = (nextPositionToGo + 1) % futurePositionsLength;
+  if (potentialNextPositionToGo == nextPositionToPlace)
+  {
+    return;
+  }
+
+  // set new target
+  nextPositionToGo = potentialNextPositionToGo;
+  position nextPosition = futurePositions[nextPositionToGo];
+  amplitudeStepper->setTargetPosition(nextPosition.amplitudePosition);
+  angleStepper->setTargetPosition(nextPosition.anglePosition);
+  amplitudeStepper->setSpeed(nextPosition.amplitudeVelocity);
+  angleStepper->setSpeed(nextPosition.angleVelocity);
+
+  angleTargetReached = false;
+  adjustingAnglePos = false;
+
+  // put pen in position
+  // the +1 is just because the .read()
+  // returns the last value we wrote -1 ¯\_(ツ)_/¯
+  // if (penServo.read() + 1 != nextPosition.penPosition)
+  if (abs(nextPosition.penPosition - penServo.read()) > 2)
+  {
+    penServo.write(nextPosition.penPosition);
+    // without this delay the plotter starts
+    // moving before the pen has reached the bottom
+    delay(150);
+  }
+}
+
+bool correctAngle()
+{
+  if (!adjustingAnglePos)
+  {
+    if (targetAngleReached())
+      return true;
+
+    adjustingAnglePos = true;
+    return false
+  }
+  else
+  {
+    return adjustAngle();
+  }
+}
+
+bool targetAngleReached()
+{
+  long encoderAnglePos = encoderPosToAnglePos();
+  if (!angleCorrectionEnabled)
+  {
+    return true;
+  }
+
+  float stepsPerEncoderUnit = maxAnglePos / float(maxEncoderCount);
+  long positionDiff = encoderAnglePos - angleStepper->getPosition();
+  if (angleCorrectionEnabled && positionDiff > (stepsPerEncoderUnit / 2))
+  {
+    return false;
+  }
+
+  return true;
+}
+
+// immediately set the angle and next position should fix it
+bool adjustAngle()
+{
+  long encoderAnglePos = encoderPosToAnglePos();
+  adjustingAnglePos = false;
+  angleStepper->setPosition(encoderAnglePos);
+  angleStepper->setTargetPosition(encoderAnglePos);
+  return true;
+}
+
+// works ok but the angle deviation is noticeable
+// bool adjustAngle()
+// {
+//   long encoderTargetPos = anglePosToEncoderPos(angleStepper->getTargetPosition());
+//   long encoderPosition = angleEncoder.getCount();
+
+//   if (encoderPosition != encoderTargetPos)
+//   {
+//     bool goingForward = encoderPosition < encoderTargetPos;
+//     bool stepped = angleStepper->singleStepAtSpeed(goingForward);
+//   }
+//   else
+//   {
+//     adjustingAnglePos = false;
+//     long encoderAnglePos = encoderPosToAnglePos();
+//     angleStepper->setPosition(encoderAnglePos);
+//     angleStepper->setTargetPosition(encoderAnglePos);
+//     return true;
+//   }
+
+//   return false;
+// }
 
 void printStatus()
 {
@@ -329,6 +361,8 @@ void printStatus()
   serialWriteln(digitalRead(maxAmplitudePin));
   serialWriteln(digitalRead(zeroAnglePin));
   serialWriteln(digitalRead(maxAnglePin));
+
+  serialWriteln(angleCorrectionEnabled);
 }
 
 enum command
@@ -338,6 +372,7 @@ enum command
   setMode,
   calibrate,
   addPosition,
+  setAngleCorrection,
 };
 
 int readInt()
@@ -389,20 +424,19 @@ bool parseCommand()
   int cmd = intFromBuffer(commandBuffer, readIdx);
   readIdx += sizeof(cmd);
 
-  // serialWriteln("GOT COMMAND TYPE: " + String(cmd));
-
   switch (cmd)
   {
   case setMode:
-    // serialWriteln("PROCESSING SET MODE COMMAND");
     currentMode = intFromBuffer(commandBuffer, readIdx);
     break;
   case getStatus:
-    // serialWriteln("PROCESSING GET STATUS COMMAND");
     printStatus();
     break;
+  case setAngleCorrection:
+    int enableAngleCorrection = intFromBuffer(commandBuffer, readIdx);
+    angleCorrectionEnabled = enableAngleCorrection > 0;
+    break;
   case calibrate:
-    // serialWriteln("PROCESSING CALIBRATE COMMAND");
     travelableDistanceSteps = intFromBuffer(commandBuffer, readIdx);
     stepsPerMm = floatFromBuffer(commandBuffer, readIdx + 4);
     minAmplitudePos = intFromBuffer(commandBuffer, readIdx + 8);
@@ -415,7 +449,6 @@ bool parseCommand()
     calibrated = true;
     break;
   case addPosition:
-    // serialWriteln("PROCESSING ADD POSITION");
     if (nextPositionToGo == nextPositionToPlace)
     {
       return false;
@@ -435,15 +468,8 @@ bool parseCommand()
     calculated_checksum += (p.amplitudeVelocity % 123);
     calculated_checksum += (p.angleVelocity % 123);
 
-    // Serial.print("GOT POS: ");
-    // Serial.print(String(p.amplitudePosition) + " ");
-    // Serial.print(String(p.anglePosition) + " ");
-    // Serial.print(String(p.penPosition) + " ");
-    // Serial.print(String(p.amplitudeVelocity) + " ");
-    // serialWriteln(String(p.angleVelocity) + " ");
     if (received_checksum != calculated_checksum)
     {
-      // serialWriteln("CHECKSUM MISMATCH " + String(received_checksum) + " != " + String(calculated_checksum));
       calculated_checksum = 0;
       return false;
     }

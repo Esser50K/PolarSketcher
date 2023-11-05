@@ -55,6 +55,7 @@ function MainUI() {
     const [contentSize, setCotentSize] = useState([FULL_CANVAS_WIDTH, FULL_CANVAS_HEIGHT])
     const [contentPosition, setContentPosition] = useState({ x: 0, y: 0 });
     const [dryrunChecked, setDryrunChecked] = useState(true);
+    const [angleCorrection, setAngleCorrectionChecked] = useState(true);
     const [drawnSVGs, setDrawnSVGs] = useState<DrawnSVG[]>([]);
     const [canvasDimensions, setCanvasDimensions] = useState<{ x: number, y: number }>({ x: FULL_CANVAS_WIDTH, y: FULL_CANVAS_HEIGHT });
     const [drawingName, setDrawingName] = useState("");
@@ -139,6 +140,7 @@ function MainUI() {
             const body = {
                 canvas_size: [canvasDimensions.x, canvasDimensions.y],
                 dryrun: dryrunChecked,
+                angle_correction: angleCorrection,
             }
 
             const resp = await fetch(
@@ -238,6 +240,7 @@ function MainUI() {
                 posInPreviewCanvas[1]],
             size: [sizeInPreviewCanvas[0], sizeInPreviewCanvas[1]],
             dryrun: dryrunChecked,
+            angle_correction: angleCorrection,
             rotation: rotation,
             toolpath_config: {
                 algorithm: toolpathAlgorithm,
@@ -401,6 +404,13 @@ function MainUI() {
                                 label="Use Dryrun"
                                 default={true}
                                 onValueChange={(val) => { setDryrunChecked(val) }}
+                            ></CheckboxInput>
+                        </div>
+                        <div className="w-full">
+                            <CheckboxInput
+                                label="Use Angle Correction"
+                                default={true}
+                                onValueChange={(val) => { setAngleCorrectionChecked(val) }}
                             ></CheckboxInput>
                         </div>
                         <div className="flex flex-row">
