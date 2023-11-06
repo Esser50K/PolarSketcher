@@ -111,12 +111,13 @@ class Status:
         out_str += "Max Amplitude Pressed: %s\n" % self.maxAmplitudeButtonPressed
         out_str += "Min Angle Pressed: %s\n" % self.minAngleButtonPressed
         out_str += "Max Angle Pressed: %s\n" % self.maxAngleButtonPressed
+        out_str += "Angle Correction Enabled: %s\n" % self.angleCorrectionEnabled
 
         return out_str
 
 
 class PolarSketcherInterface:
-    def __init__(self, baud_rate=115200, port=None):
+    def __init__(self, baud_rate=115200, port=None, angle_correction=True):
         self.port = port if port is not None else find_serial_port()
         self.baud_rate = baud_rate
         self.status = Status()
@@ -126,6 +127,7 @@ class PolarSketcherInterface:
         self.__serial_reader = None
         self.__needs_retry = False
         self.__last_sent_msg = b''
+        self.__angle_correction_enabled = angle_correction
 
         self.serial = None
         self.__initilised = False
@@ -154,6 +156,7 @@ class PolarSketcherInterface:
         self.__last_sent_msg = b''
 
         self.__setup_done_event.wait()
+        self.set_angle_correction(self.__angle_correction_enabled)
         self.__initilised = True
 
     def stop(self, wait=True):

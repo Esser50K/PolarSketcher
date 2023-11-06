@@ -209,28 +209,6 @@ int stepsSinceCorrection = 0;
 const int stepsUntilCorrection = 50;
 bool angleTargetReached = false;
 bool adjustingAnglePos = false;
-bool draw()
-{
-  // step toward target
-  if ((amplitudeStepper->getPosition() != amplitudeStepper->getTargetPosition() ||
-       angleStepper->getPosition() != angleStepper->getTargetPosition()) &&
-      !adjustingAnglePos)
-  {
-    amplitudeStepper->stepTowardTarget();
-    angleStepper->stepTowardTarget();
-  }
-  else if (!angleTargetReached)
-  {
-    // angle position correction routine
-    angleTargetReached = correctAngle();
-  }
-  else
-  {
-    loadNewPosition();
-  }
-
-  return false;
-}
 
 void loadNewPosition()
 {
@@ -262,22 +240,6 @@ void loadNewPosition()
     // without this delay the plotter starts
     // moving before the pen has reached the bottom
     delay(150);
-  }
-}
-
-bool correctAngle()
-{
-  if (!adjustingAnglePos)
-  {
-    if (targetAngleReached())
-      return true;
-
-    adjustingAnglePos = true;
-    return false
-  }
-  else
-  {
-    return adjustAngle();
   }
 }
 
@@ -331,6 +293,45 @@ bool adjustAngle()
 
 //   return false;
 // }
+
+bool correctAngle()
+{
+  if (!adjustingAnglePos)
+  {
+    if (targetAngleReached())
+      return true;
+
+    adjustingAnglePos = true;
+    return false;
+  }
+  else
+  {
+    return adjustAngle();
+  }
+}
+
+bool draw()
+{
+  // step toward target
+  if ((amplitudeStepper->getPosition() != amplitudeStepper->getTargetPosition() ||
+       angleStepper->getPosition() != angleStepper->getTargetPosition()) &&
+      !adjustingAnglePos)
+  {
+    amplitudeStepper->stepTowardTarget();
+    angleStepper->stepTowardTarget();
+  }
+  else if (!angleTargetReached)
+  {
+    // angle position correction routine
+    angleTargetReached = correctAngle();
+  }
+  else
+  {
+    loadNewPosition();
+  }
+
+  return false;
+}
 
 void printStatus()
 {
@@ -424,6 +425,8 @@ bool parseCommand()
   int cmd = intFromBuffer(commandBuffer, readIdx);
   readIdx += sizeof(cmd);
 
+  // not allowed to be initialised inside of switch statement
+  int enableAngleCorrection = 0;
   switch (cmd)
   {
   case setMode:
@@ -433,7 +436,7 @@ bool parseCommand()
     printStatus();
     break;
   case setAngleCorrection:
-    int enableAngleCorrection = intFromBuffer(commandBuffer, readIdx);
+    enableAngleCorrection = intFromBuffer(commandBuffer, readIdx);
     angleCorrectionEnabled = enableAngleCorrection > 0;
     break;
   case calibrate:

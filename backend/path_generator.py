@@ -246,7 +246,8 @@ class PathGenerator:
                      render_translate=(0, 0),
                      render_scale=1.0,
                      rotation=0,
-                     toolpath_rotation=0):
+                     toolpath_rotation=0,
+                     points_per_unit=10):
         try:
             path_len = path.length()
         except ZeroDivisionError:
@@ -260,7 +261,7 @@ class PathGenerator:
             raise e
 
         scaled_path_len = path_len * render_scale
-        total_points = int(scaled_path_len)
+        total_points = int(scaled_path_len) * points_per_unit
         if total_points == 0:
             return
 
