@@ -112,28 +112,22 @@ class Status:
 def get_calib_msg():
     msg = b''
     # travelable distance steps
-    msg += encode_int(37713)
-    # serial_conn.write(encode_int(37729))
+    msg += encode_int(37250)
 
     # steps per mm
-    msg += encode_float(79.23)
-    # serial_conn.write(encode_float(80.96))
+    msg += encode_float(78.26)
 
     # minAmplitudePos
-    msg += encode_int(2923)
-    # serial_conn.write(encode_int(2960))
+    msg += encode_int(2886)
 
     # maxAmplituePos
-    msg += encode_int(40637)
-    # serial_conn.write(encode_int(40689))
+    msg += encode_int(40136)
 
     # maxAnglePos
-    msg += encode_int(14650)
-    # serial_conn.write(encode_int(14499))
+    msg += encode_int(14358)
 
     # maxEncoderCount
-    msg += encode_int(2433)
-    # serial_conn.write(encode_int(1236))
+    msg += encode_int(2482)
 
     for i, c in enumerate(msg):
         print(i + 4, ":", c)
