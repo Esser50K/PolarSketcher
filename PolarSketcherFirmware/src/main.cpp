@@ -41,7 +41,7 @@ long maxAnglePos = 0;
 long maxEncoderCount = 0;
 
 // feature flags
-bool angleCorrectionEnabled = true;
+bool angleCorrectionEnabled = false;
 
 // declare steppers
 Stepper *amplitudeStepper;
@@ -245,12 +245,12 @@ void loadNewPosition()
 
 bool targetAngleReached()
 {
-  long encoderAnglePos = encoderPosToAnglePos();
   if (!angleCorrectionEnabled)
   {
     return true;
   }
 
+  long encoderAnglePos = encoderPosToAnglePos();
   float stepsPerEncoderUnit = maxAnglePos / float(maxEncoderCount);
   long positionDiff = encoderAnglePos - angleStepper->getPosition();
   if (angleCorrectionEnabled && positionDiff > (stepsPerEncoderUnit / 2))
@@ -261,45 +261,36 @@ bool targetAngleReached()
   return true;
 }
 
-// immediately set the angle and next position should fix it
 bool adjustAngle()
 {
-  long encoderAnglePos = encoderPosToAnglePos();
-  adjustingAnglePos = false;
-  angleStepper->setPosition(encoderAnglePos);
-  angleStepper->setTargetPosition(encoderAnglePos);
-  return true;
+  long encoderTargetPos = anglePosToEncoderPos(angleStepper->getTargetPosition());
+  long encoderPosition = angleEncoder.getCount();
+
+  if (encoderPosition != encoderTargetPos)
+  {
+    bool goingForward = encoderPosition < encoderTargetPos;
+    bool stepped = angleStepper->singleStepAtSpeed(goingForward);
+  }
+  else
+  {
+    adjustingAnglePos = false;
+    long encoderAnglePos = encoderPosToAnglePos();
+    angleStepper->setPosition(encoderAnglePos);
+    angleStepper->setTargetPosition(encoderAnglePos);
+    return true;
+  }
+
+  return false;
 }
-
-// works ok but the angle deviation is noticeable
-// bool adjustAngle()
-// {
-//   long encoderTargetPos = anglePosToEncoderPos(angleStepper->getTargetPosition());
-//   long encoderPosition = angleEncoder.getCount();
-
-//   if (encoderPosition != encoderTargetPos)
-//   {
-//     bool goingForward = encoderPosition < encoderTargetPos;
-//     bool stepped = angleStepper->singleStepAtSpeed(goingForward);
-//   }
-//   else
-//   {
-//     adjustingAnglePos = false;
-//     long encoderAnglePos = encoderPosToAnglePos();
-//     angleStepper->setPosition(encoderAnglePos);
-//     angleStepper->setTargetPosition(encoderAnglePos);
-//     return true;
-//   }
-
-//   return false;
-// }
 
 bool correctAngle()
 {
   if (!adjustingAnglePos)
   {
     if (targetAngleReached())
+    {
       return true;
+    }
 
     adjustingAnglePos = true;
     return false;
@@ -324,6 +315,10 @@ bool draw()
   {
     // angle position correction routine
     angleTargetReached = correctAngle();
+    if (angleTargetReached)
+    {
+      loadNewPosition();
+    }
   }
   else
   {
