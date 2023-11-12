@@ -209,6 +209,8 @@ int stepsSinceCorrection = 0;
 const int stepsUntilCorrection = 50;
 bool angleTargetReached = false;
 bool adjustingAnglePos = false;
+const float compensationRatio = .1; // how much of the stepsDiff to compensate for on every position
+int currentStepsDiff = 0;
 
 void loadNewPosition()
 {
@@ -223,7 +225,9 @@ void loadNewPosition()
   nextPositionToGo = potentialNextPositionToGo;
   position nextPosition = futurePositions[nextPositionToGo];
   amplitudeStepper->setTargetPosition(nextPosition.amplitudePosition);
-  angleStepper->setTargetPosition(nextPosition.anglePosition);
+
+  int angleStepsCompensation = currentStepsDiff * compensationRatio;
+  angleStepper->setTargetPosition(nextPosition.anglePosition + angleStepsCompensation);
   amplitudeStepper->setSpeed(nextPosition.amplitudeVelocity);
   angleStepper->setSpeed(nextPosition.angleVelocity);
 
@@ -283,6 +287,14 @@ bool adjustAngle()
   return false;
 }
 
+bool incrementalAngleAdjust()
+{
+  long encoderTargetPos = anglePosToEncoderPos(angleStepper->getTargetPosition());
+  long encoderPosition = angleEncoder.getCount();
+  float stepsPerEncoderUnit = maxAnglePos / float(maxEncoderCount);
+  return true;
+}
+
 bool correctAngle()
 {
   if (!adjustingAnglePos)
@@ -297,7 +309,8 @@ bool correctAngle()
   }
   else
   {
-    return adjustAngle();
+    // return adjustAngle();
+    return incrementalAngleAdjust();
   }
 }
 
