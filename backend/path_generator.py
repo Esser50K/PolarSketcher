@@ -276,7 +276,7 @@ class PathGenerator:
                    scaled_point.imag + render_translate[1])
 
 
-def _threaded_generation(target, queue_size=100):
+def _threaded_generation(target, queue_size=10000):
     queue = Queue(queue_size)
     t = Thread(target=target, args=(queue,))
     t.start()
