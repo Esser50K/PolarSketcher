@@ -339,6 +339,6 @@ def find_serial_port():
     default = '/dev/cu.usbserial-0001'
     devices = os.listdir('/dev/')
     for device in devices:
-        if device.startswith(('ttyACM', 'ttyUSB', 'ttyS', 'cu.usbserial')):
+        if device.startswith(('serial', 'ttyACM', 'ttyUSB', 'ttyS', 'cu.usbserial')):
             return '/dev/' + device
     return default
