@@ -568,6 +568,12 @@ void readInput()
   }
 }
 
+void enableMotors(bool enabled)
+{
+  uint8_t val = enabled ? LOW : HIGH; // enable is LOW
+  digitalWrite(enableStepper, val);
+}
+
 void setup()
 {
   Serial.setTxBufferSize(2048);
@@ -588,7 +594,7 @@ void setup()
   pinMode(maxAnglePin, INPUT);
 
   // enable and create steppers
-  digitalWrite(enableStepper, LOW); // enable is LOW for a4988 driver
+  enableMotors(false);
   amplitudeStepper = new Stepper(amplitudeStepPin, amplitudeDirPin);
   angleStepper = new Stepper(angleStepPin, angleDirPin);
 
@@ -605,6 +611,7 @@ void setup()
   serialWriteln("SETUP DONE");
 }
 
+long idleStartTime = millis();
 void loop()
 {
   readInput();
@@ -613,14 +620,23 @@ void loop()
   switch (currentMode)
   {
   case idle:
+    if (millis() - idleStartTime > 10000)
+    {
+      enableMotors(false);
+    }
     break;
   case homing:
+    enableMotors(true);
     amplitudeStepper->setSpeed(3500);
     angleStepper->setSpeed(1200);
     if (home())
+    {
       currentMode = idle;
+      idleStartTime = millis();
+    }
     break;
   case autoCalibration:
+    enableMotors(true);
     if (!calibrating)
       stepsPerMm = 0;
     amplitudeStepper->setSpeed(3500);
@@ -629,11 +645,17 @@ void loop()
       currentMode = homing;
     break;
   case drawing:
+    enableMotors(true);
     if (draw())
+    {
       currentMode = idle;
+      idleStartTime = millis();
+    }
     break;
   default:
     currentMode = idle;
+    idleStartTime = millis();
+
     break;
   }
 }
