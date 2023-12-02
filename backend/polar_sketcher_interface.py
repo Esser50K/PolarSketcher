@@ -142,20 +142,24 @@ class PolarSketcherInterface:
         self.__setup_done_event.clear()
         self.status = Status()
         self.__stop = False
-
-        self.serial = serial.Serial(self.port, self.baud_rate)
-        # cannot assume that that serial will always reset, so do it here
-        self.serial.setDTR(False)
-        time.sleep(.1)
-        self.serial.setDTR(True)
-
-        self.__serial_reader = Thread(
-            target=self.__process_serial, daemon=True)
-        self.__serial_reader.start()
         self.__needs_retry = False
         self.__last_sent_msg = b''
 
-        self.__setup_done_event.wait()
+        # open serial and start processing
+        self.serial = serial.Serial(
+            port=self.port, baudrate=self.baud_rate)
+        self.__serial_reader = Thread(
+            target=self.__process_serial, daemon=True)
+        self.__serial_reader.start()
+
+        # cannot assume that that serial will always reset, so do it here
+        # note: commenting this out since we set calibration and set to home from start
+        # and its not working with the new esp32
+        # self.serial.setDTR(False)
+        # time.sleep(.1)
+        # self.serial.setDTR(True)
+        # self.__setup_done_event.wait(1)
+
         self.set_angle_correction(self.__angle_correction_enabled)
         self.__initilised = True
 

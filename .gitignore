@@ -21,6 +21,9 @@ ui/build
 .env.production.local
 .idea
 .vscode*
+.svg
+.pdf
+.plt
 
 npm-debug.log*
 yarn-debug.log*
