@@ -3891,6 +3891,22 @@
     (pin "2" (uuid 525189db-5cc5-41c4-a86a-6d7efc0d9ee9))
   )
 
+  (symbol (lib_id "power:GND2") (at 31.75 153.67 0) (unit 1)
+    (in_bom yes) (on_board yes)
+    (uuid 1d7648a9-9e5d-4388-a200-b0b1a89c47c6)
+    (property "Reference" "#PWR?" (id 0) (at 31.75 160.02 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Value" "GND2" (id 1) (at 35.56 156.2418 0))
+    (property "Footprint" "" (id 2) (at 31.75 153.67 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "" (id 3) (at 31.75 153.67 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "1" (uuid 57a000f3-7b82-4bad-981b-92a0387925fc))
+  )
+
   (symbol (lib_id "Connector:Conn_01x02_Male") (at 118.11 35.56 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 1ef4de50-2ca1-40d1-b3f1-bfa09312f4d1)
@@ -4172,22 +4188,6 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (pin "1" (uuid dcd5da1a-8771-4424-8590-a7621c73f561))
-  )
-
-  (symbol (lib_id "power:GND") (at 31.75 153.67 0) (unit 1)
-    (in_bom yes) (on_board yes)
-    (uuid 597d889a-c427-4051-9abc-5179944660da)
-    (property "Reference" "#PWR024" (id 0) (at 31.75 160.02 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Value" "GND" (id 1) (at 31.75 157.48 0))
-    (property "Footprint" "" (id 2) (at 31.75 153.67 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (property "Datasheet" "" (id 3) (at 31.75 153.67 0)
-      (effects (font (size 1.27 1.27)) hide)
-    )
-    (pin "1" (uuid f7117af4-84c3-42d7-b563-7cb8cecd5238))
   )
 
   (symbol (lib_id "Driver_Motor:Pololu_Breakout_A4988") (at 76.2 90.17 0) (unit 1)
@@ -4925,9 +4925,6 @@
     (path "/4e419c29-ac2f-4661-a776-ebb9cc77fd3c"
       (reference "#PWR023") (unit 1) (value "GND") (footprint "")
     )
-    (path "/597d889a-c427-4051-9abc-5179944660da"
-      (reference "#PWR024") (unit 1) (value "GND") (footprint "")
-    )
     (path "/09b34bd2-3bb1-4d66-8249-92246024bf21"
       (reference "#PWR0101") (unit 1) (value "GND2") (footprint "")
     )
@@ -4945,6 +4942,9 @@
     )
     (path "/fda0795d-d736-4a91-8448-fc7e1b289ca6"
       (reference "#PWR0106") (unit 1) (value "+3V3") (footprint "")
+    )
+    (path "/1d7648a9-9e5d-4388-a200-b0b1a89c47c6"
+      (reference "#PWR?") (unit 1) (value "GND2") (footprint "")
     )
     (path "/3f012fe6-0af3-4448-8f34-de5fc294a4ac"
       (reference "A1") (unit 1) (value "Pololu_Breakout_A4988") (footprint "Module:Pololu_Breakout-16_15.2x20.3mm")
