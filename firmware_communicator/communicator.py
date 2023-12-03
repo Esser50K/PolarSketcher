@@ -112,19 +112,19 @@ class Status:
 def get_calib_msg():
     msg = b''
     # travelable distance steps
-    msg += encode_int(75564)
+    msg += encode_int(74810)
 
     # steps per mm
     msg += encode_float(157.16)
 
     # minAmplitudePos
-    msg += encode_int(5846)
+    msg += encode_int(5809)
 
     # maxAmplituePos
-    msg += encode_int(81410)
+    msg += encode_int(80619)
 
     # maxAnglePos
-    msg += encode_int(28778)
+    msg += encode_int(28760)
 
     # maxEncoderCount
     msg += encode_int(2450)

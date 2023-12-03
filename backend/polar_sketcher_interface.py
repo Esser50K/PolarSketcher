@@ -244,19 +244,19 @@ class PolarSketcherInterface:
 
         # TODO read calibration from a file or something
         # travelable distance steps
-        msg += self.__encode_int(75564)
+        msg += self.__encode_int(74810)
 
         # steps per mm
         msg += self.__encode_float(157.16)
 
         # minAmplitudePos
-        msg += self.__encode_int(5846)
+        msg += self.__encode_int(5809)
 
         # maxAmplituePos
-        msg += self.__encode_int(81410)
+        msg += self.__encode_int(80619)
 
         # maxAnglePos
-        msg += self.__encode_int(28778)
+        msg += self.__encode_int(28760)
 
         # maxEncoderCount
         msg += self.__encode_int(2450)
